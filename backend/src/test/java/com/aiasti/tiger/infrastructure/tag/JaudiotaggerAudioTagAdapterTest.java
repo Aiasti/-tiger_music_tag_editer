@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,8 +21,8 @@ import com.aiasti.tiger.domain.model.TrackTags;
 /**
  * S0 验证：jaudiotagger 适配器对 PRD 支持格式的标签读写覆盖。
  *
- * <p>样本由 ffmpeg 生成（见 src/test/resources/samples）。结论：MP3/M4A(AAC)/ALAC/FLAC/OGG
- * 全字段可读写；WAV 写回在 jaudiotagger 3.0.1 下不生效，单列为已知限制。
+ * <p>样本由 ffmpeg 生成（见 src/test/resources/samples）。结论：MP3/M4A(AAC)/ALAC/FLAC/OGG/WAV
+ * 全字段可读写；WAV 由适配器挂默认 ID3 子标签后写回生效（见 JaudiotaggerAudioTagAdapter）。
  */
 class JaudiotaggerAudioTagAdapterTest {
 
@@ -38,7 +37,8 @@ class JaudiotaggerAudioTagAdapterTest {
                 Arguments.of("m4a-aac", "sample-aac.m4a"),
                 Arguments.of("m4a-alac", "sample-alac.m4a"),
                 Arguments.of("flac", "sample.flac"),
-                Arguments.of("ogg", "sample.ogg"));
+                Arguments.of("ogg", "sample.ogg"),
+                Arguments.of("wav", "sample.wav"));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -73,21 +73,6 @@ class JaudiotaggerAudioTagAdapterTest {
         assertTrue(adapter.supports(Path.of("A.FLAC")));
         assertFalse(adapter.supports(Path.of("a.txt")));
         assertFalse(adapter.supports(Path.of("noextension")));
-    }
-
-    /** WAV 已知限制：jaudiotagger 3.0.1 的 WavTag 写回不生效（读回为空），需在 DEV-001 处理。 */
-    @Disabled("jaudiotagger 3.0.1 WAV 标签写回不生效，见 dev.md DEV-001")
-    @Test
-    void wavWriteThenReadBack(@TempDir Path tempDir) throws Exception {
-        Path work = copySample("sample.wav", tempDir);
-
-        TrackTags expected = sampleTags();
-        adapter.write(work, expected);
-
-        TrackTags actual = adapter.read(work);
-        for (TagField field : TagField.values()) {
-            assertEquals(expected.value(field), actual.value(field), "wav / " + field);
-        }
     }
 
     private static Path copySample(String fileName, Path tempDir) throws Exception {

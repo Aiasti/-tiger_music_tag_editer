@@ -16,6 +16,7 @@ import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.TagException;
 import org.jaudiotagger.tag.images.Artwork;
 import org.jaudiotagger.tag.images.StandardArtwork;
+import org.jaudiotagger.tag.wav.WavTag;
 import org.springframework.stereotype.Component;
 
 import com.aiasti.tiger.domain.exception.TagAccessException;
@@ -72,6 +73,7 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
         try {
             AudioFile audioFile = AudioFileIO.read(file.toFile());
             Tag tag = audioFile.getTagOrCreateAndSetDefault();
+            activateId3TagForWav(tag);
             for (TagField field : TagField.values()) {
                 FieldKey key = JaudiotaggerFieldKeyMapper.toLibrary(field);
                 String value = tags.value(field).orElse(null);
@@ -92,6 +94,17 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
         } catch (CannotReadException | IOException | TagException
                  | ReadOnlyFileException | InvalidAudioFrameException | CannotWriteException e) {
             throw new TagAccessException("写入标签失败: " + file, e);
+        }
+    }
+
+    /**
+     * WAV 无 ID3 chunk 时，挂一个默认 ID3 子标签并标记其存在；否则 WavTag 会把字段
+     * 写入能力受限的 RIFF INFO 且写回不落盘。
+     */
+    private static void activateId3TagForWav(Tag tag) {
+        if (tag instanceof WavTag wavTag && !wavTag.isExistingId3Tag()) {
+            wavTag.setID3Tag(WavTag.createDefaultID3Tag());
+            wavTag.setExistingId3Tag(true);
         }
     }
 }
