@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tiger Music Tag Editor · 主界面 UI 基线（S0.5 原型）</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --surface-2: #f7f8fa;
+    --surface-3: #f1f3f6;
+    --border: #e2e5ea;
+    --border-strong: #cfd4db;
+    --text: #1f2430;
+    --text-muted: #667085;
+    --text-faint: #a9b0ba;
+    --accent: #2f6fed;
+    --accent-soft: #e9f0fe;
+    --state-edited: #c07a00;
+    --state-edited-soft: #fff4de;
+    --state-matched: #2f6fed;
+    --state-matched-soft: #e9f0fe;
+    --state-failed: #d1494b;
+    --state-failed-soft: #fdecec;
+    --state-ok: #1f9d63;
+    --radius: 6px;
+    --radius-sm: 4px;
+    --h-row: 30px;
+    --font: "Segoe UI", system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1280px; margin: 0 auto; padding: 24px 20px 48px; }
+  .page > h1 { font-size: 16px; margin: 0 0 4px; }
+  .page > p.sub { margin: 0 0 20px; color: var(--text-muted); font-size: 12px; }
+
+  /* ============ 应用窗口 ============ */
+  .window {
+    display: flex;
+    flex-direction: column;
+    height: 620px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(20, 25, 35, .12);
+  }
+
+  /* 标题栏 */
+  .titlebar {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .titlebar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+  .titlebar .name { margin-left: 6px; color: var(--text); font-weight: 600; }
+  .titlebar .spacer { flex: 1; }
+
+  /* 主工具栏 */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toolbar .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .toolbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn .chev { color: var(--text-faint); font-size: 10px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+  .seg button {
+    border: 0; background: var(--surface); height: 28px; padding: 0 10px;
+    font-size: 12.5px; color: var(--text-muted); cursor: pointer;
+  }
+  .seg button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+  /* 次工具栏 */
+  .subbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .subbar .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  /* 主体 */
+  .body { flex: 1; display: flex; min-height: 0; }
+  .tablewrap { flex: 1; overflow: auto; }
+  .detail {
+    width: 300px; flex: none;
+    border-left: 1px solid var(--border);
+    background: var(--surface-2);
+    overflow: auto;
+    padding: 12px;
+  }
+
+  /* 表格 */
+  table.tracks { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+  table.tracks th, table.tracks td {
+    height: var(--h-row);
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 400;
+  }
+  table.tracks thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--surface-3);
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  table.tracks td.num, table.tracks th.num { text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  table.tracks td.st { width: 22px; padding: 0 6px; text-align: center; }
+  .marker { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+  .marker.edited { background: var(--state-edited); }
+  .marker.matched { background: var(--state-matched); }
+  .marker.failed { background: var(--state-failed); }
+  .marker.ok { background: var(--state-ok); }
+
+  tr.group td {
+    background: var(--surface-3);
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    height: 26px;
+  }
+  tbody tr.data { cursor: default; }
+  tbody tr.data:hover td { background: var(--surface-2); }
+  tbody tr.data.selected td { background: var(--accent-soft); }
+  tbody tr.data.failed td { background: var(--state-failed-soft); }
+
+  td.empty { color: var(--text-faint); }
+  td.cell-editable { background: #fff; }
+  td.cell-edited { background: var(--state-edited-soft); box-shadow: inset 2px 0 0 var(--state-edited); }
+
+  /* 详情面板 */
+  .detail h3 { margin: 0 0 8px; font-size: 12px; color: var(--text-muted); text-transform: none; letter-spacing: .02em; }
+  .detail .cover {
+    width: 100%; aspect-ratio: 1/1; border-radius: var(--radius);
+    border: 1px solid var(--border); object-fit: cover; background: var(--surface-3);
+  }
+  .detail .filemeta { margin: 8px 0 12px; font-size: 11.5px; color: var(--text-muted); word-break: break-all; }
+  .kv { display: grid; grid-template-columns: 72px 1fr; gap: 4px 8px; font-size: 12px; }
+  .kv dt { color: var(--text-muted); }
+  .kv dd { margin: 0; }
+  .kv dd.empty { color: var(--text-faint); }
+  .detail .group-title {
+    margin: 14px 0 6px; font-size: 11px; font-weight: 600; color: var(--text-muted);
+    border-top: 1px solid var(--border); padding-top: 10px;
+  }
+
+  /* 状态栏 */
+  .statusbar {
+    height: 28px; flex: none;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 10px;
+    background: var(--surface-3);
+    border-top: 1px solid var(--border);
+    font-size: 11.5px;
+    color: var(--text-muted);
+  }
+  .statusbar .spacer { flex: 1; }
+  .statusbar .warn { color: var(--state-edited); }
+  .statusbar .link { color: var(--accent); cursor: pointer; }
+
+  /* ============ 设计规范 ============ */
+  .spec { margin-top: 32px; }
+  .spec h2 { font-size: 14px; margin: 0 0 12px; }
+  .spec h4 { font-size: 12px; margin: 18px 0 8px; color: var(--text-muted); }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .swatch { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+  .swatch .color { height: 40px; }
+  .swatch .meta { padding: 6px 8px; font-size: 11px; }
+  .swatch .meta b { display: block; font-weight: 600; }
+  .swatch .meta span { color: var(--text-muted); }
+  .states { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+  .states .item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>主界面 UI 基线 · 静态原型</h1>
+  <p class="sub">S0.5 交付物（BIZ-010）。用于评审信息架构、设计语言与状态规范；不是最终实现。</p>
+
+  <!-- ================= 应用窗口 ================= -->
+  <div class="window">
+    <div class="titlebar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="name">Tiger Music Tag Editor</span>
+      <span class="spacer"></span>
+      <span>工作区 · 未命名</span>
+    </div>
+
+    <!-- 主工具栏 -->
+    <div class="toolbar">
+      <button class="btn primary">导入文件</button>
+      <button class="btn">导入文件夹</button>
+      <span class="sep"></span>
+      <div class="seg" role="group" aria-label="匹配粒度">
+        <button class="active">按专辑</button>
+        <button>按单曲</button>
+      </div>
+      <button class="btn">在线匹配</button>
+      <span class="sep"></span>
+      <button class="btn">重命名 / 归档</button>
+      <button class="btn">写回</button>
+      <div class="right">
+        <button class="btn ghost">试听</button>
+        <button class="btn ghost">设置</button>
+      </div>
+    </div>
+
+    <!-- 次工具栏 -->
+    <div class="subbar">
+      <span class="chip">列显隐 ▾</span>
+      <span class="chip">批量编辑字段…</span>
+      <span class="chip">提交前回滚</span>
+      <span class="chip">按范围编号 1…N</span>
+      <span style="margin-left:auto">拖动行可调整顺序</span>
+    </div>
+
+    <!-- 主体：表格 + 详情 -->
+    <div class="body">
+      <div class="tablewrap">
+        <table class="tracks">
+          <thead>
+            <tr>
+              <th class="st" data-col="status">·</th>
+              <th class="num" data-col="idx">#</th>
+              <th data-col="title">标题</th>
+              <th data-col="artist">艺术家</th>
+              <th data-col="album">专辑</th>
+              <th data-col="albumArtist">专辑艺术家</th>
+              <th class="num" data-col="track">音轨</th>
+              <th class="num" data-col="disc">碟号</th>
+              <th class="num" data-col="year">年份</th>
+              <th data-col="genre">流派</th>
+              <th data-col="composer">作曲</th>
+              <th data-col="lyricist">作词</th>
+              <th data-col="arranger">编曲</th>
+              <th data-col="comment">注释</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="group"><td colspan="14">碟 1 · Tiger Live</td></tr>
+            <tr class="data" data-title="Intro" data-detail="complete">
+              <td class="st"><span class="marker ok" title="已保存"></span></td>
+              <td class="num">1</td>
+              <td>Intro</td>
+              <td>Tiger Band</td>
+              <td>Tiger Live</td>
+              <td>Tiger Band</td>
+              <td class="num">1</td><td class="num">1</td><td class="num">2026</td>
+              <td>Rock</td>
+              <td class="empty">—</td><td class="empty">—</td><td class="empty">—</td>
+              <td>开场曲</td>
+            </tr>
+            <tr class="data selected" data-title="Main Theme" data-detail="edited">
+              <td class="st"><span class="marker edited" title="已编辑"></span></td>
+              <td class="num">2</td>
+              <td>Main Theme</td>
+              <td>Tiger Band</td>
+              <td>Tiger Live</td>
+              <td>Tiger Band</td>
+              <td class="num cell-edited">2</td><td class="num">1</td><td class="num">2026</td>
+              <td class="empty cell-edited">—</td>
+              <td>Tiger Composer</td>
+              <td class="empty">—</td><td class="empty">—</td>
+              <td class="empty">—</td>
+            </tr>
+            <tr class="data" data-title="Interlude" data-detail="complete">
+              <td class="st"><span class="marker ok" title="已保存"></span></td>
+              <td class="num">3</td>
+              <td>Interlude</td>
+              <td>Tiger Band</td>
+              <td>Tiger Live</td>
+              <td>Tiger Band</td>
+              <td class="num">3</td><td class="num">1</td><td class="num">2026</td>
+              <td>Rock</td>
+              <td class="empty">—</td><td class="empty">—</td><td class="empty">—</td>
+              <td class="empty">—</td>
+            </tr>
+
+            <tr class="group"><td colspan="14">碟 2 · Tiger Live</td></tr>
+            <tr class="data" data-title="Encore" data-detail="matched">
+              <td class="st"><span class="marker matched" title="已匹配"></span></td>
+              <td class="num">1</td>
+              <td>Encore</td>
+              <td>Tiger Band</td>
+              <td>Tiger Live</td>
+              <td>Tiger Band</td>
+              <td class="num">1</td><td class="num">2</td><td class="num">2026</td>
+              <td>Rock</td>
+              <td>Tiger Composer</td>
+              <td class="empty">—</td><td class="empty">—</td>
+              <td>来自 MusicBrainz</td>
+            </tr>
+            <tr class="data failed" data-title="Outro" data-detail="failed">
+              <td class="st"><span class="marker failed" title="失败"></span></td>
+              <td class="num">2</td>
+              <td>Outro</td>
+              <td class="empty">—</td>
+              <td class="empty">—</td>
+              <td class="empty">—</td>
+              <td class="num empty">—</td><td class="num">2</td><td class="num empty">—</td>
+              <td class="empty">—</td>
+              <td class="empty">—</td><td class="empty">—</td><td class="empty">—</td>
+              <td class="empty">标签读取失败</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 详情 / 媒体区 -->
+      <aside class="detail">
+        <h3>曲目详情</h3>
+        <img class="cover" alt="专辑封面"
+             src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=abstract%20album%20cover%20art%2C%20geometric%20circles%2C%20warm%20amber%20and%20deep%20blue%20palette%2C%20minimal%2C%20square&image_size=square" />
+        <div class="filemeta">D:\Music\Tiger Live\01-02 Main Theme.flac</div>
+
+        <dl class="kv">
+          <dt>状态</dt><dd>已编辑（待提交）</dd>
+          <dt>标题</dt><dd>Main Theme</dd>
+          <dt>艺术家</dt><dd>Tiger Band</dd>
+          <dt>专辑</dt><dd>Tiger Live</dd>
+          <dt>流派</dt><dd class="empty">—</dd>
+        </dl>
+
+        <div class="group-title">当前 / 首次值</div>
+        <dl class="kv">
+          <dt>音轨号</dt><dd>2 &nbsp;<span style="color:var(--text-faint)">(首次 2)</span></dd>
+          <dt>流派</dt><dd class="empty">已清除 &nbsp;<span style="color:var(--state-edited)">(首次 Rock)</span></dd>
+        </dl>
+
+        <div class="group-title">封面与歌词</div>
+        <p class="legend" style="margin:0">
+          单张封面（获取 / 替换 / 嵌入）；歌词支持编辑与嵌入。二者随写回一并落盘。
+        </p>
+      </aside>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="statusbar">
+      <span>共 <b>6</b> 首</span>
+      <span>已编辑 <b>1</b></span>
+      <span>已匹配 <b>1</b></span>
+      <span>失败 <b>1</b></span>
+      <span class="spacer"></span>
+      <span class="warn">在线匹配需遵守 1 请求/秒，节流中…</span>
+      <span class="link">跳过 1 项（不支持格式）</span>
+    </div>
+  </div>
+
+  <!-- ================= 设计规范 ================= -->
+  <section class="spec">
+    <h2>设计规范</h2>
+
+    <h4>色彩 token</h4>
+    <div class="swatches">
+      <div class="swatch"><div class="color" style="background:#eef0f3"></div><div class="meta"><b>--bg</b><span>#eef0f3 窗口外背景</span></div></div>
+      <div class="swatch"><div class="color" style="background:#ffffff"></div><div class="meta"><b>--surface</b><span>#ffffff 面板</span></div></div>
+      <div class="swatch"><div class="color" style="background:#f1f3f6"></div><div class="meta"><b>--surface-3</b><span>#f1f3f6 表头/工具栏</span></div></div>
+      <div class="swatch"><div class="color" style="background:#e2e5ea"></div><div class="meta"><b>--border</b><span>#e2e5ea 分隔线</span></div></div>
+      <div class="swatch"><div class="color" style="background:#1f2430"></div><div class="meta"><b>--text</b><span>#1f2430 正文</span></div></div>
+      <div class="swatch"><div class="color" style="background:#667085"></div><div class="meta"><b>--text-muted</b><span>#667085 次要</span></div></div>
+      <div class="swatch"><div class="color" style="background:#a9b0ba"></div><div class="meta"><b>--text-faint</b><span>#a9b0ba 空值占位</span></div></div>
+      <div class="swatch"><div class="color" style="background:#2f6fed"></div><div class="meta"><b>--accent</b><span>#2f6fed 主操作/已匹配</span></div></div>
+      <div class="swatch"><div class="color" style="background:#c07a00"></div><div class="meta"><b>--state-edited</b><span>#c07a00 已编辑</span></div></div>
+      <div class="swatch"><div class="color" style="background:#d1494b"></div><div class="meta"><b>--state-failed</b><span>#d1494b 失败</span></div></div>
+      <div class="swatch"><div class="color" style="background:#1f9d63"></div><div class="meta"><b>--state-ok</b><span>#1f9d63 已保存</span></div></div>
+    </div>
+
+    <h4>状态标记</h4>
+    <div class="states">
+      <span class="item"><span class="marker ok"></span> 已保存（无待提交差异）</span>
+      <span class="item"><span class="marker edited"></span> 已编辑（存在待写回的字段）</span>
+      <span class="item"><span class="marker matched"></span> 已匹配（已应用在线候选）</span>
+      <span class="item"><span class="marker failed"></span> 失败（读取/匹配/写回失败，需处理）</span>
+      <span class="item" style="color:var(--text-faint)">— 空值占位（浅色，区别于有值）</span>
+    </div>
+
+    <h4>单元格与排版</h4>
+    <p class="legend">
+      表格基础字号 13px、行高 30px、表头 11.5px/半粗；数字列右对齐并使用等宽数字。<br />
+      可编辑单元格为白底，已编辑单元格加浅琥珀底并在左侧留 2px 强调条；只读列（如状态、#）保持默认底色。<br />
+      多碟专辑以分组行分隔（碟 1 / 碟 2），组内按音轨号排列。<br />
+      横向可滚动，列显隐通过次工具栏的「列显隐」控制。
+    </p>
+  </section>
+</div>
+
+<script>
+  // 行选择：点击数据行高亮，并更新详情面板标题
+  document.querySelectorAll('tbody tr.data').forEach(function (row) {
+    row.addEventListener('click', function () {
+      document.querySelectorAll('tbody tr.data').forEach(function (r) { r.classList.remove('selected'); });
+      row.classList.add('selected');
+      var h = document.querySelector('.detail h3');
+      if (h) { h.textContent = '曲目详情 · ' + (row.getAttribute('data-title') || ''); }
+    });
+  });
+
+  // 列显隐演示：点击「列显隐」依次隐藏/显示 作词、编曲 两列
+  (function () {
+    var chip = document.querySelector('.subbar .chip');
+    var hidden = false;
+    if (!chip) { return; }
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', function () {
+      hidden = !hidden;
+      document.querySelectorAll('[data-col="lyricist"], [data-col="arranger"]').forEach(function (el) {
+        el.style.display = hidden ? 'none' : '';
+      });
+      chip.textContent = hidden ? '列显隐 ▾（已隐藏 作词/编曲）' : '列显隐 ▾';
+    });
+  })();
+</script>
+</body>
+</html>
