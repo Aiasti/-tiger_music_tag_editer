@@ -1,0 +1,11 @@
+appId: com.aiasti.tiger
+productName: Tiger Music Tag Editor
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+win:
+  target:
+    - nsis
