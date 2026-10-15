@@ -1,467 +1,2035 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tiger Music Tag Editor · 主界面 UI 基线（S0.5 原型）</title>
+<title>Tiger Music Tag Editor · 主界面 UI 基线（One Dark / One Light 双主题原型）</title>
 <style>
-  :root {
-    --bg: #eef0f3;
-    --surface: #ffffff;
-    --surface-2: #f7f8fa;
-    --surface-3: #f1f3f6;
-    --border: #e2e5ea;
-    --border-strong: #cfd4db;
-    --text: #1f2430;
-    --text-muted: #667085;
-    --text-faint: #a9b0ba;
-    --accent: #2f6fed;
-    --accent-soft: #e9f0fe;
-    --state-edited: #c07a00;
-    --state-edited-soft: #fff4de;
-    --state-matched: #2f6fed;
-    --state-matched-soft: #e9f0fe;
-    --state-failed: #d1494b;
-    --state-failed-soft: #fdecec;
-    --state-ok: #1f9d63;
-    --radius: 6px;
-    --radius-sm: 4px;
-    --h-row: 30px;
-    --font: "Segoe UI", system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+  /* ==========================================================================
+     主题配色变量定义（以 Atom / VS Code 经典 One Dark 与 One Light 调色板为基准）
+     ========================================================================== */
+
+  /* One Dark 默认暗色 */
+  :root, html[data-theme="dark"] {
+    --theme-name: "One Dark";
+    --bg-page: #1e1e24;
+    --window-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+
+    /* 表面分层 */
+    --surface: #282c34;        /* 主体背景 (One Dark editor background) */
+    --surface-2: #21252b;      /* 次级面板、暗色侧边 (One Dark tree-view) */
+    --surface-3: #2c313a;      /* 表头、激活元素底色、工具栏次层 */
+    --surface-hover: #353b45;  /* 悬停底色 */
+
+    /* 边框线条 */
+    --border: #181a1f;         /* 深色分割线 */
+    --border-strong: #3e4451;  /* 强对比线条与输入框边框 */
+
+    /* 文字层次 */
+    --text: #abb2bf;           /* 正文文字 (One Dark foreground) */
+    --text-muted: #5c6370;     /* 次要文字、注释 */
+    --text-faint: #4b5263;     /* 占位符、空值占位 */
+    --text-bright: #e5e5e6;    /* 高亮、加粗标题文字 */
+
+    /* 品牌与主操作 */
+    --accent: #61afef;         /* 经典 One Dark 蓝 */
+    --accent-hover: #4fa0df;
+    --accent-soft: rgba(97, 175, 239, 0.16);
+    --accent-contrast: #1e1e24;
+
+    /* 业务状态语义色彩 (统一使用 One Dark 语义色) */
+    --state-ok: #98c379;             /* 绿色 (已保存/完成) */
+    --state-ok-soft: rgba(152, 195, 121, 0.15);
+    
+    --state-edited: #e5c07b;         /* 琥珀金黄 (待提交编辑态) */
+    --state-edited-soft: rgba(229, 192, 123, 0.15);
+    
+    --state-matched: #61afef;        /* 蓝色 (在线匹配候选应用) */
+    --state-matched-soft: rgba(97, 175, 239, 0.15);
+    
+    --state-failed: #e06c75;         /* 浅红珊瑚 (错误/失败/损坏) */
+    --state-failed-soft: rgba(224, 108, 117, 0.15);
+    
+    --state-purple: #c678dd;         /* 紫色 (扩展标识/多碟组) */
+    --state-cyan: #56b6c2;           /* 青色 (数字/信息高亮) */
+
+    --cell-editable-bg: #282c34;
+    --cell-hover-bg: #2f343e;
+
+    /* 原生表单与滚动条 */
+    --scrollbar-thumb: #3e4451;
+    --scrollbar-track: #21252b;
   }
 
+  /* One Light 浅色主题 */
+  html[data-theme="light"] {
+    --theme-name: "One Light";
+    --bg-page: #e8eaed;
+    --window-shadow: 0 12px 32px rgba(24, 30, 45, 0.12);
+
+    /* 表面分层 */
+    --surface: #fafafa;        /* 主体背景 (One Light background) */
+    --surface-2: #f0f0f0;      /* 次级面板、暗色侧边 (One Light gutter/tab) */
+    --surface-3: #e5e5e6;      /* 表头、工具栏次层 */
+    --surface-hover: #ebebeb;  /* 悬停底色 */
+
+    /* 边框线条 */
+    --border: #e0e0e0;         /* 浅灰分割线 */
+    --border-strong: #c8c8c9;  /* 强线条与输入框 */
+
+    /* 文字层次 */
+    --text: #383a42;           /* 正文文字 (One Light foreground) */
+    --text-muted: #696c77;     /* 次要文字 */
+    --text-faint: #a0a1a7;     /* 占位符、空值占位 */
+    --text-bright: #1b1c1e;    /* 高亮、标题 */
+
+    /* 品牌与主操作 */
+    --accent: #4078f2;         /* 经典 One Light 蓝 */
+    --accent-hover: #2960d6;
+    --accent-soft: rgba(64, 120, 242, 0.12);
+    --accent-contrast: #ffffff;
+
+    /* 业务状态语义色彩 (统一使用 One Light 语义色) */
+    --state-ok: #50a14f;             /* 绿色 (已保存) */
+    --state-ok-soft: rgba(80, 161, 79, 0.12);
+    
+    --state-edited: #c18401;         /* 琥珀金黄 (已编辑) */
+    --state-edited-soft: rgba(193, 132, 1, 0.12);
+    
+    --state-matched: #4078f2;        /* 蓝色 (已匹配) */
+    --state-matched-soft: rgba(64, 120, 242, 0.12);
+    
+    --state-failed: #e45649;         /* 红色 (失败) */
+    --state-failed-soft: rgba(228, 86, 73, 0.12);
+    
+    --state-purple: #a626a4;         /* 紫色 */
+    --state-cyan: #0184bc;           /* 青色 */
+
+    --cell-editable-bg: #ffffff;
+    --cell-hover-bg: #f4f4f4;
+
+    --scrollbar-thumb: #c8c8c9;
+    --scrollbar-track: #f0f0f0;
+  }
+
+  /* 基础与通用重置 */
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
   body {
-    font-family: var(--font);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
     font-size: 13px;
+    line-height: 1.45;
     color: var(--text);
-    background: var(--bg);
+    background: var(--bg-page);
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .page { max-width: 1280px; margin: 0 auto; padding: 24px 20px 48px; }
-  .page > h1 { font-size: 16px; margin: 0 0 4px; }
-  .page > p.sub { margin: 0 0 20px; color: var(--text-muted); font-size: 12px; }
+  /* 滚动条美化 */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-  /* ============ 应用窗口 ============ */
-  .window {
+  .page-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 20px 24px 60px;
+  }
+
+  /* 顶栏信息与主题切换器 */
+  .header-bar {
     display: flex;
-    flex-direction: column;
-    height: 620px;
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(20, 25, 35, .12);
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
   }
-
-  /* 标题栏 */
-  .titlebar {
-    height: 34px;
+  .header-bar h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-bright);
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 10px;
-    background: var(--surface-3);
+  }
+  .header-bar .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .theme-toggle-group {
+    display: inline-flex;
+    background: var(--surface-2);
+    padding: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .theme-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+  }
+  .theme-btn:hover {
+    color: var(--text-bright);
+  }
+  .theme-btn.active {
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+
+  /* ==========================================================================
+     应用主窗口容器 (仿标准 Windows 桌面宿主 1280x640 窗口)
+     ========================================================================== */
+  .window {
+    display: flex;
+    flex-direction: column;
+    height: 640px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--window-shadow);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  /* 窗口顶部标题栏 (A1) */
+  .titlebar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    background: var(--surface-2);
     border-bottom: 1px solid var(--border);
     font-size: 12px;
     color: var(--text-muted);
+    user-select: none;
   }
-  .titlebar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
-  .titlebar .name { margin-left: 6px; color: var(--text); font-weight: 600; }
-  .titlebar .spacer { flex: 1; }
-
-  /* 主工具栏 */
-  .toolbar {
+  .titlebar .window-controls {
+    display: flex;
+    gap: 6px;
+    margin-right: 4px;
+  }
+  .titlebar .window-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .titlebar .app-brand {
+    font-weight: 600;
+    color: var(--text-bright);
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
   }
-  .toolbar .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-  .toolbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .titlebar .workspace-badge {
+    background: var(--surface-3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .quick-tips {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
 
+  /* 主工具栏 (A2) */
+  .toolbar-primary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .toolbar-primary .sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border-strong);
+    margin: 0 4px;
+  }
+  .toolbar-primary .right-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* 按钮通用体系 */
   .btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 28px;
-    padding: 0 10px;
+    height: 30px;
+    padding: 0 11px;
     border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm);
+    border-radius: 4px;
     background: var(--surface);
     color: var(--text);
     font-size: 12.5px;
+    font-weight: 500;
     cursor: pointer;
+    user-select: none;
+    transition: all 0.12s ease;
   }
-  .btn:hover { background: var(--surface-2); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn.primary:hover { filter: brightness(1.05); }
-  .btn.ghost { border-color: transparent; background: transparent; }
-  .btn .chev { color: var(--text-faint); font-size: 10px; }
-
-  .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
-  .seg button {
-    border: 0; background: var(--surface); height: 28px; padding: 0 10px;
-    font-size: 12.5px; color: var(--text-muted); cursor: pointer;
+  .btn:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--text-bright);
+    border-color: var(--text-muted);
   }
-  .seg button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+  .btn.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+  .btn.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+  }
+  .btn.ghost:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--text-bright);
+  }
 
-  /* 次工具栏 */
-  .subbar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px;
+  /* 分段切换控制组 (匹配粒度切换) */
+  .seg-group {
+    display: inline-flex;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+  .seg-btn {
+    border: none;
+    background: transparent;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .seg-btn:hover {
+    color: var(--text-bright);
+  }
+  .seg-btn.active {
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* 次工具栏 (A3 选区操作、列显隐、编号等) */
+  .toolbar-secondary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
     background: var(--surface-2);
     border-bottom: 1px solid var(--border);
     font-size: 12px;
-    color: var(--text-muted);
   }
-  .subbar .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    height: 24px; padding: 0 8px;
+  .action-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 9px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 11.5px;
+    user-select: none;
+    transition: all 0.12s ease;
+  }
+  .action-chip:hover:not(.disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--text-bright);
+  }
+  .action-chip.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .action-chip .chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
   }
 
-  /* 主体 */
-  .body { flex: 1; display: flex; min-height: 0; }
-  .tablewrap { flex: 1; overflow: auto; }
-  .detail {
-    width: 300px; flex: none;
-    border-left: 1px solid var(--border);
-    background: var(--surface-2);
+  /* 主体区域：表格 (A4) + 右侧详情/媒体区 (A5) */
+  .main-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    background: var(--surface);
+  }
+
+  .table-container {
+    flex: 1;
     overflow: auto;
-    padding: 12px;
+    position: relative;
+    border-right: 1px solid var(--border);
   }
 
-  /* 表格 */
-  table.tracks { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
-  table.tracks th, table.tracks td {
-    height: var(--h-row);
+  /* 12 字段主数据表格 */
+  table.track-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+    font-size: 12.5px;
+  }
+  table.track-table th, table.track-table td {
+    height: 30px;
     padding: 0 10px;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     text-align: left;
     font-weight: 400;
   }
-  table.tracks thead th {
-    position: sticky; top: 0; z-index: 2;
+  table.track-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     background: var(--surface-3);
-    color: var(--text-muted);
+    color: var(--text-bright);
     font-size: 11.5px;
     font-weight: 600;
     border-bottom: 1px solid var(--border-strong);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
-  table.tracks td.num, table.tracks th.num { text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-  table.tracks td.st { width: 22px; padding: 0 6px; text-align: center; }
-  .marker { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
-  .marker.edited { background: var(--state-edited); }
-  .marker.matched { background: var(--state-matched); }
-  .marker.failed { background: var(--state-failed); }
-  .marker.ok { background: var(--state-ok); }
+  table.track-table th.col-num, table.track-table td.col-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.track-table td.col-status {
+    width: 32px;
+    padding: 0 4px;
+    text-align: center;
+  }
 
-  tr.group td {
-    background: var(--surface-3);
-    color: var(--text-muted);
+  /* 状态圆点与标志 */
+  .status-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .status-badge.ok { background: var(--state-ok); }
+  .status-badge.edited { background: var(--state-edited); }
+  .status-badge.matched { background: var(--state-matched); }
+  .status-badge.failed { background: var(--state-failed); }
+
+  /* 多碟分组折叠/展示行 (FR-2) */
+  tr.disc-group-row td {
+    background: var(--surface-2);
+    color: var(--state-purple);
     font-size: 11.5px;
     font-weight: 600;
-    height: 26px;
-  }
-  tbody tr.data { cursor: default; }
-  tbody tr.data:hover td { background: var(--surface-2); }
-  tbody tr.data.selected td { background: var(--accent-soft); }
-  tbody tr.data.failed td { background: var(--state-failed-soft); }
-
-  td.empty { color: var(--text-faint); }
-  td.cell-editable { background: #fff; }
-  td.cell-edited { background: var(--state-edited-soft); box-shadow: inset 2px 0 0 var(--state-edited); }
-
-  /* 详情面板 */
-  .detail h3 { margin: 0 0 8px; font-size: 12px; color: var(--text-muted); text-transform: none; letter-spacing: .02em; }
-  .detail .cover {
-    width: 100%; aspect-ratio: 1/1; border-radius: var(--radius);
-    border: 1px solid var(--border); object-fit: cover; background: var(--surface-3);
-  }
-  .detail .filemeta { margin: 8px 0 12px; font-size: 11.5px; color: var(--text-muted); word-break: break-all; }
-  .kv { display: grid; grid-template-columns: 72px 1fr; gap: 4px 8px; font-size: 12px; }
-  .kv dt { color: var(--text-muted); }
-  .kv dd { margin: 0; }
-  .kv dd.empty { color: var(--text-faint); }
-  .detail .group-title {
-    margin: 14px 0 6px; font-size: 11px; font-weight: 600; color: var(--text-muted);
-    border-top: 1px solid var(--border); padding-top: 10px;
+    height: 28px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-strong);
   }
 
-  /* 状态栏 */
-  .statusbar {
-    height: 28px; flex: none;
-    display: flex; align-items: center; gap: 12px;
-    padding: 0 10px;
+  /* 数据行状态 */
+  tbody tr.track-row {
+    background: var(--cell-editable-bg);
+    cursor: default;
+    transition: background-color 0.1s ease;
+  }
+  tbody tr.track-row:hover {
+    background: var(--cell-hover-bg);
+  }
+  tbody tr.track-row.selected {
+    background: var(--accent-soft);
+  }
+  tbody tr.track-row.failed {
+    background: var(--state-failed-soft);
+  }
+
+  /* 单元格微状态 */
+  td.cell-empty {
+    color: var(--text-faint);
+  }
+  td.cell-edited {
+    background: var(--state-edited-soft) !important;
+    box-shadow: inset 3px 0 0 var(--state-edited);
+    color: var(--text-bright);
+  }
+  td.cell-matched {
+    background: var(--state-matched-soft) !important;
+    box-shadow: inset 3px 0 0 var(--state-matched);
+  }
+
+  /* 右侧：详情 / 媒体区 (A5) */
+  .detail-panel {
+    width: 320px;
+    flex: none;
+    background: var(--surface-2);
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .detail-section-title {
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .cover-card {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .cover-preview {
+    width: 96px;
+    height: 96px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    object-fit: cover;
     background: var(--surface-3);
+    flex-shrink: 0;
+  }
+  .cover-meta {
+    flex: 1;
+    font-size: 11.5px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cover-meta .filename {
+    font-weight: 600;
+    color: var(--text-bright);
+    word-break: break-all;
+    line-height: 1.35;
+  }
+  .cover-meta .filesize {
+    color: var(--text-muted);
+  }
+
+  .meta-kv-table {
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 6px 8px;
+    font-size: 12px;
+  }
+  .meta-kv-table dt {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .meta-kv-table dd {
+    margin: 0;
+    color: var(--text);
+    word-break: break-word;
+  }
+  .meta-kv-table dd.empty { color: var(--text-faint); }
+  .meta-kv-table dd .history-tag {
+    font-size: 11px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  .diff-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+  }
+  .diff-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .diff-row:last-child { border-bottom: none; }
+  .diff-label { color: var(--text-muted); }
+  .diff-val-current { color: var(--state-edited); font-weight: 600; }
+  .diff-val-initial { color: var(--text-faint); }
+
+  /* 底部状态栏 (A6) */
+  .statusbar {
+    height: 30px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 12px;
+    background: var(--surface-2);
     border-top: 1px solid var(--border);
     font-size: 11.5px;
     color: var(--text-muted);
   }
+  .statusbar-metric {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .statusbar-metric b {
+    color: var(--text-bright);
+  }
   .statusbar .spacer { flex: 1; }
-  .statusbar .warn { color: var(--state-edited); }
-  .statusbar .link { color: var(--accent); cursor: pointer; }
+  .throttle-warning {
+    color: var(--state-edited);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .throttle-spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--state-edited-soft);
+    border-top-color: var(--state-edited);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .skip-link {
+    color: var(--state-failed);
+    cursor: pointer;
+    text-decoration: underline;
+  }
 
-  /* ============ 设计规范 ============ */
-  .spec { margin-top: 32px; }
-  .spec h2 { font-size: 14px; margin: 0 0 12px; }
-  .spec h4 { font-size: 12px; margin: 18px 0 8px; color: var(--text-muted); }
-  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-  .swatch { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-  .swatch .color { height: 40px; }
-  .swatch .meta { padding: 6px 8px; font-size: 11px; }
-  .swatch .meta b { display: block; font-weight: 600; }
-  .swatch .meta span { color: var(--text-muted); }
-  .states { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-size: 12px; }
-  .states .item { display: inline-flex; align-items: center; gap: 6px; }
-  .legend { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+  /* ==========================================================================
+     设计规范与色板呈现区 (下方交互式参考手册)
+     ========================================================================== */
+  .spec-guide {
+    margin-top: 36px;
+    border-top: 1px solid var(--border-strong);
+    padding-top: 24px;
+  }
+  .spec-guide h2 {
+    font-size: 15px;
+    margin: 0 0 16px;
+    color: var(--text-bright);
+  }
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .palette-card {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .palette-color {
+    height: 48px;
+    display: flex;
+    align-items: flex-end;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-family: monospace;
+    font-weight: 600;
+  }
+  .palette-info {
+    padding: 8px 10px;
+    font-size: 11.5px;
+  }
+  .palette-info strong {
+    display: block;
+    color: var(--text-bright);
+  }
+  .palette-info span {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  .state-legend-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  /* ==========================================================================
+     第 5 节交互弹窗系统 (Modal & Dialog Components) - One Dark / One Light
+     ========================================================================== */
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.16s ease;
+  }
+  html[data-theme="light"] .modal-backdrop {
+    background: rgba(30, 36, 48, 0.45);
+  }
+  .modal-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-window {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+    width: 92%;
+    max-width: 820px;
+    max-height: 86vh;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html[data-theme="light"] .modal-window {
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  }
+  .modal-window.active {
+    display: flex;
+  }
+  @keyframes modalPop {
+    from { transform: scale(0.96) translateY(10px); }
+    to { transform: scale(1) translateY(0); }
+  }
+
+  .modal-header {
+    height: 44px;
+    padding: 0 16px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+  }
+  .modal-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  .modal-close:hover {
+    color: var(--state-failed);
+    background: var(--surface-hover);
+  }
+
+  .modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+    font-size: 12.5px;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .modal-footer {
+    height: 48px;
+    padding: 0 16px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex: none;
+  }
+
+  /* 弹窗内通用警示横幅 (Alert Banner) */
+  .modal-alert {
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .modal-alert.warning {
+    background: var(--state-edited-soft);
+    border: 1px solid var(--state-edited);
+    color: var(--state-edited);
+  }
+  .modal-alert.info {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+  .modal-alert.error {
+    background: var(--state-failed-soft);
+    border: 1px solid var(--state-failed);
+    color: var(--state-failed);
+  }
+
+  /* 弹窗内数据表格 */
+  .modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .modal-table th {
+    background: var(--surface-3);
+    color: var(--text-bright);
+    font-weight: 600;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+  .modal-table td {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .modal-table tr:hover td {
+    background: var(--surface-hover);
+  }
+  .modal-table tr.selected td {
+    background: var(--accent-soft);
+  }
+
+  /* 差异高亮标签 */
+  .diff-badge-old {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    margin-right: 6px;
+  }
+  .diff-badge-new {
+    color: var(--state-edited);
+    font-weight: 600;
+  }
+  .diff-badge-matched {
+    color: var(--state-matched);
+    font-weight: 600;
+  }
+
+  /* 表单控件通用 */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .form-input, .form-select {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    color: var(--text-bright);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+    font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus {
+    border-color: var(--accent);
+  }
+  .form-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* 候选卡片列表 (FR-5) */
+  .candidate-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .candidate-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .candidate-card:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+  .candidate-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .candidate-score {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--state-ok);
+    width: 48px;
+    text-align: center;
+    flex: none;
+  }
+  .candidate-info {
+    flex: 1;
+  }
+  .candidate-title {
+    font-weight: 600;
+    color: var(--text-bright);
+    font-size: 13px;
+  }
+  .candidate-sub {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* 节流进度指示条 */
+  .modal-throttle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+  }
+
+  /* 弹窗预览快捷导航条 */
+  .modal-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 24px;
+  }
+  .modal-nav-btn {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 5px 10px;
+    font-size: 11.5px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .modal-nav-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-bright);
+    border-color: var(--accent);
+  }
 </style>
 </head>
 <body>
-<div class="page">
-  <h1>主界面 UI 基线 · 静态原型</h1>
-  <p class="sub">S0.5 交付物（BIZ-010）。用于评审信息架构、设计语言与状态规范；不是最终实现。</p>
 
-  <!-- ================= 应用窗口 ================= -->
-  <div class="window">
+<div class="page-container">
+
+  <!-- 顶栏与交互式双色切换器 -->
+  <div class="header-bar">
+    <div>
+      <h1>
+        Tiger Music Tag Editor
+        <span style="font-size: 12px; font-weight: normal; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 4px;">
+          S0.5 UI 原型 · 双色主题
+        </span>
+      </h1>
+      <div class="subtitle">
+        严格基于 One Dark / One Light 官方调色板设计 · 1280×640 桌面宿主视图
+      </div>
+    </div>
+
+    <!-- 交互式主题切换按钮 -->
+    <div class="theme-toggle-group">
+      <button class="theme-btn active" id="btn-theme-dark" onclick="setTheme('dark')">
+        🌙 One Dark
+      </button>
+      <button class="theme-btn" id="btn-theme-light" onclick="setTheme('light')">
+        ☀️ One Light
+      </button>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       主应用窗口 (1280x640 桌面视口模拟)
+       ====================================================================== -->
+  <div class="window" id="app-window">
+    
+    <!-- A1: 标题栏与工作区标记 -->
     <div class="titlebar">
-      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      <span class="name">Tiger Music Tag Editor</span>
+      <div class="window-controls">
+        <span class="window-dot"></span>
+        <span class="window-dot"></span>
+        <span class="window-dot"></span>
+      </div>
+      <span class="app-brand">Tiger Music Tag Editor</span>
+      <span class="workspace-badge" id="workspace-state-badge">工作区 · 临时会话 (6 首)</span>
       <span class="spacer"></span>
-      <span>工作区 · 未命名</span>
+      <span class="quick-tips">内存快照隔离 · 提交前磁盘保护生效中</span>
     </div>
 
-    <!-- 主工具栏 -->
-    <div class="toolbar">
-      <button class="btn primary">导入文件</button>
-      <button class="btn">导入文件夹</button>
+    <!-- A2: 主工具栏 (核心用例入口) -->
+    <div class="toolbar-primary">
+      <button class="btn primary" title="选择单个或多个音频文件导入工作区 (FR-1)" onclick="triggerImportNotice()">
+        📂 导入文件
+      </button>
+      <button class="btn" title="扫描文件夹批量导入音频 (FR-1)" onclick="triggerImportNotice()">
+        📁 导入文件夹
+      </button>
+      
       <span class="sep"></span>
-      <div class="seg" role="group" aria-label="匹配粒度">
-        <button class="active">按专辑</button>
-        <button>按单曲</button>
+
+      <!-- 匹配粒度切换 (FR-5) -->
+      <div class="seg-group" role="group" aria-label="在线匹配粒度切换">
+        <button class="seg-btn active" id="btn-gran-album" onclick="setGranularity('album')">按专辑</button>
+        <button class="seg-btn" id="btn-gran-track" onclick="setGranularity('track')">按单曲</button>
       </div>
-      <button class="btn">在线匹配</button>
+      <button class="btn" title="通过 MusicBrainz/AcoustID 获取元数据候选 (FR-5)" onclick="openModal('modal-online-match')">
+        🌐 在线匹配
+      </button>
+
       <span class="sep"></span>
-      <button class="btn">重命名 / 归档</button>
-      <button class="btn">写回</button>
-      <div class="right">
-        <button class="btn ghost">试听</button>
-        <button class="btn ghost">设置</button>
+
+      <!-- 重命名与归档 / 写回落盘 (FR-7, FR-8) -->
+      <button class="btn" title="内置固定命名模板预览与目录归档 (FR-7)" onclick="openModal('modal-rename-preview')">
+        🏷️ 重命名 / 归档
+      </button>
+      <button class="btn" title="查看变更差异并最终确认落盘 (FR-8)" onclick="openModal('modal-write-confirm')">
+        💾 确认写回
+      </button>
+
+      <!-- 右侧辅助入口 (FR-9, 设置) -->
+      <div class="right-actions">
+        <button class="btn ghost" title="拉起外部播放器播放选中曲目 (FR-9)" onclick="triggerAudition()">
+          ▶ 试听
+        </button>
+        <button class="btn ghost" title="外部播放器路径与请求节流配置" onclick="openModal('modal-settings')">
+          ⚙️ 设置
+        </button>
       </div>
     </div>
 
-    <!-- 次工具栏 -->
-    <div class="subbar">
-      <span class="chip">列显隐 ▾</span>
-      <span class="chip">批量编辑字段…</span>
-      <span class="chip">提交前回滚</span>
-      <span class="chip">按范围编号 1…N</span>
-      <span style="margin-left:auto">拖动行可调整顺序</span>
+    <!-- A3: 次工具栏 (选区操作、列显隐、排序重置与编号) -->
+    <div class="toolbar-secondary">
+      <span class="action-chip" id="chip-cols" onclick="toggleExtraColumns()">
+        <span class="chip-dot" style="background:var(--accent)"></span>
+        列显隐 ▾
+      </span>
+      <span class="action-chip" title="批量设置选中行的某一元数据字段 (FR-4)" onclick="openModal('modal-batch-edit')">
+        批量编辑字段…
+      </span>
+      <span class="action-chip" style="color:var(--state-edited)" title="撤销所有未提交编辑并恢复初始排序 (BIZ-008)" onclick="triggerRollbackDemo()">
+        提交前回滚
+      </span>
+      <span class="action-chip" id="chip-renumber" title="按选区与碟号连续分配音轨号，空选区时自动禁用 (BIZ-003)" onclick="openModal('modal-renumber-confirm')">
+        按范围编号 1…N
+      </span>
+      <span style="margin-left: auto; color: var(--text-muted); font-size: 11px;">
+        💡 提示：按住拖拽行可手动调整曲目顺序
+      </span>
     </div>
 
-    <!-- 主体：表格 + 详情 -->
-    <div class="body">
-      <div class="tablewrap">
-        <table class="tracks">
+    <!-- 主体：左侧 12 字段表格 + 右侧媒体与详情 (A4, A5) -->
+    <div class="main-body">
+      
+      <!-- A4: 曲目表格 (支持横向横滚、列显隐、碟号分组) -->
+      <div class="table-container">
+        <table class="track-table">
           <thead>
             <tr>
-              <th class="st" data-col="status">·</th>
-              <th class="num" data-col="idx">#</th>
-              <th data-col="title">标题</th>
-              <th data-col="artist">艺术家</th>
-              <th data-col="album">专辑</th>
-              <th data-col="albumArtist">专辑艺术家</th>
-              <th class="num" data-col="track">音轨</th>
-              <th class="num" data-col="disc">碟号</th>
-              <th class="num" data-col="year">年份</th>
-              <th data-col="genre">流派</th>
-              <th data-col="composer">作曲</th>
-              <th data-col="lyricist">作词</th>
-              <th data-col="arranger">编曲</th>
-              <th data-col="comment">注释</th>
+              <th class="col-status">·</th>
+              <th class="col-num" style="width:36px">#</th>
+              <th style="min-width:140px">标题</th>
+              <th style="min-width:110px">艺术家</th>
+              <th style="min-width:110px">专辑</th>
+              <th style="min-width:100px">专辑艺术家</th>
+              <th class="col-num" style="width:50px">音轨</th>
+              <th class="col-num" style="width:50px">碟号</th>
+              <th class="col-num" style="width:55px">年份</th>
+              <th style="min-width:80px">流派</th>
+              <th class="col-extra" data-col="composer" style="min-width:90px">作曲</th>
+              <th class="col-extra" data-col="lyricist" style="min-width:90px">作词</th>
+              <th class="col-extra" data-col="arranger" style="min-width:90px">编曲</th>
+              <th style="min-width:110px">注释</th>
             </tr>
           </thead>
           <tbody>
-            <tr class="group"><td colspan="14">碟 1 · Tiger Live</td></tr>
-            <tr class="data" data-title="Intro" data-detail="complete">
-              <td class="st"><span class="marker ok" title="已保存"></span></td>
-              <td class="num">1</td>
+            <!-- 碟 1 分组 -->
+            <tr class="disc-group-row">
+              <td colspan="14">💿 碟 1 · Tiger Live (2026)</td>
+            </tr>
+            <!-- 行 1：已保存正常行 -->
+            <tr class="track-row" onclick="selectRow(this, 'Intro', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'ok')">
+              <td class="col-status"><span class="status-badge ok" title="已保存（无差异）"></span></td>
+              <td class="col-num">1</td>
               <td>Intro</td>
               <td>Tiger Band</td>
               <td>Tiger Live</td>
               <td>Tiger Band</td>
-              <td class="num">1</td><td class="num">1</td><td class="num">2026</td>
+              <td class="col-num">1</td>
+              <td class="col-num">1</td>
+              <td class="col-num">2026</td>
               <td>Rock</td>
-              <td class="empty">—</td><td class="empty">—</td><td class="empty">—</td>
-              <td>开场曲</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td>Live 开场曲</td>
             </tr>
-            <tr class="data selected" data-title="Main Theme" data-detail="edited">
-              <td class="st"><span class="marker edited" title="已编辑"></span></td>
-              <td class="num">2</td>
+            <!-- 行 2：已编辑待提交选中行 (高亮编辑态单元格) -->
+            <tr class="track-row selected" onclick="selectRow(this, 'Main Theme', 'Tiger Band', 'Tiger Live', '2026', 'Rock (已清除)', 'edited')">
+              <td class="col-status"><span class="status-badge edited" title="已编辑（待提交）"></span></td>
+              <td class="col-num">2</td>
               <td>Main Theme</td>
               <td>Tiger Band</td>
               <td>Tiger Live</td>
               <td>Tiger Band</td>
-              <td class="num cell-edited">2</td><td class="num">1</td><td class="num">2026</td>
-              <td class="empty cell-edited">—</td>
-              <td>Tiger Composer</td>
-              <td class="empty">—</td><td class="empty">—</td>
-              <td class="empty">—</td>
+              <td class="col-num cell-edited" title="编辑值: 2 (原值: 1)">2</td>
+              <td class="col-num">1</td>
+              <td class="col-num">2026</td>
+              <td class="cell-edited" title="流派已显式清除"><span style="color:var(--state-edited); font-style:italic;">已清除</span></td>
+              <td class="col-extra">Tiger Composer</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="cell-empty">—</td>
             </tr>
-            <tr class="data" data-title="Interlude" data-detail="complete">
-              <td class="st"><span class="marker ok" title="已保存"></span></td>
-              <td class="num">3</td>
+            <!-- 行 3：已保存正常行 -->
+            <tr class="track-row" onclick="selectRow(this, 'Interlude', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'ok')">
+              <td class="col-status"><span class="status-badge ok" title="已保存"></span></td>
+              <td class="col-num">3</td>
               <td>Interlude</td>
               <td>Tiger Band</td>
               <td>Tiger Live</td>
               <td>Tiger Band</td>
-              <td class="num">3</td><td class="num">1</td><td class="num">2026</td>
+              <td class="col-num">3</td>
+              <td class="col-num">1</td>
+              <td class="col-num">2026</td>
               <td>Rock</td>
-              <td class="empty">—</td><td class="empty">—</td><td class="empty">—</td>
-              <td class="empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="cell-empty">—</td>
             </tr>
 
-            <tr class="group"><td colspan="14">碟 2 · Tiger Live</td></tr>
-            <tr class="data" data-title="Encore" data-detail="matched">
-              <td class="st"><span class="marker matched" title="已匹配"></span></td>
-              <td class="num">1</td>
+            <!-- 碟 2 分组 -->
+            <tr class="disc-group-row">
+              <td colspan="14">💿 碟 2 · Tiger Live (Encore)</td>
+            </tr>
+            <!-- 行 4：已在线匹配候选 -->
+            <tr class="track-row" onclick="selectRow(this, 'Encore', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'matched')">
+              <td class="col-status"><span class="status-badge matched" title="已在线匹配候选"></span></td>
+              <td class="col-num">1</td>
               <td>Encore</td>
               <td>Tiger Band</td>
               <td>Tiger Live</td>
               <td>Tiger Band</td>
-              <td class="num">1</td><td class="num">2</td><td class="num">2026</td>
+              <td class="col-num cell-matched">1</td>
+              <td class="col-num">2</td>
+              <td class="col-num">2026</td>
               <td>Rock</td>
-              <td>Tiger Composer</td>
-              <td class="empty">—</td><td class="empty">—</td>
-              <td>来自 MusicBrainz</td>
+              <td class="col-extra">Tiger Composer</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td><span style="color:var(--state-matched)">MusicBrainz 候选</span></td>
             </tr>
-            <tr class="data failed" data-title="Outro" data-detail="failed">
-              <td class="st"><span class="marker failed" title="失败"></span></td>
-              <td class="num">2</td>
-              <td>Outro</td>
-              <td class="empty">—</td>
-              <td class="empty">—</td>
-              <td class="empty">—</td>
-              <td class="num empty">—</td><td class="num">2</td><td class="num empty">—</td>
-              <td class="empty">—</td>
-              <td class="empty">—</td><td class="empty">—</td><td class="empty">—</td>
-              <td class="empty">标签读取失败</td>
+            <!-- 行 5：标签读取失败/错误状态行 -->
+            <tr class="track-row failed" onclick="selectRow(this, 'Outro (损坏)', '—', '—', '—', '—', 'failed')">
+              <td class="col-status"><span class="status-badge failed" title="损坏或读取失败"></span></td>
+              <td class="col-num">2</td>
+              <td style="color:var(--state-failed); font-weight:500;">Outro.wav</td>
+              <td class="cell-empty">—</td>
+              <td class="cell-empty">—</td>
+              <td class="cell-empty">—</td>
+              <td class="col-num cell-empty">—</td>
+              <td class="col-num">2</td>
+              <td class="col-num cell-empty">—</td>
+              <td class="cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td class="col-extra cell-empty">—</td>
+              <td style="color:var(--state-failed)">RIFF 头部损坏 / 跳过项</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 详情 / 媒体区 -->
-      <aside class="detail">
-        <h3>曲目详情</h3>
-        <img class="cover" alt="专辑封面"
-             src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=abstract%20album%20cover%20art%2C%20geometric%20circles%2C%20warm%20amber%20and%20deep%20blue%20palette%2C%20minimal%2C%20square&image_size=square" />
-        <div class="filemeta">D:\Music\Tiger Live\01-02 Main Theme.flac</div>
+      <!-- A5: 右侧详情与媒体展示区 -->
+      <aside class="detail-panel">
+        <div>
+          <h3 class="detail-section-title">当前曲目详情</h3>
+          <div style="font-size:14px; font-weight:600; color:var(--text-bright); margin-top:4px;" id="detail-title">
+            Main Theme
+          </div>
+        </div>
 
-        <dl class="kv">
-          <dt>状态</dt><dd>已编辑（待提交）</dd>
-          <dt>标题</dt><dd>Main Theme</dd>
-          <dt>艺术家</dt><dd>Tiger Band</dd>
-          <dt>专辑</dt><dd>Tiger Live</dd>
-          <dt>流派</dt><dd class="empty">—</dd>
-        </dl>
+        <!-- 封面媒体卡片 (FR-6) -->
+        <div class="cover-card">
+          <img class="cover-preview" alt="专辑封面"
+               src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20abstract%20vinyl%20music%20album%20cover%20design%20minimalist%20geometric%20shapes&image_size=square" />
+          <div class="cover-meta">
+            <span class="filename" id="detail-file">01-02 Main Theme.flac</span>
+            <span class="filesize">FLAC · 24-bit 96kHz · 38.4 MB</span>
+            <span style="color:var(--accent); cursor:pointer; font-size:11px; margin-top:4px;">
+              🖼️ 替换封面图片…
+            </span>
+          </div>
+        </div>
 
-        <div class="group-title">当前 / 首次值</div>
-        <dl class="kv">
-          <dt>音轨号</dt><dd>2 &nbsp;<span style="color:var(--text-faint)">(首次 2)</span></dd>
-          <dt>流派</dt><dd class="empty">已清除 &nbsp;<span style="color:var(--state-edited)">(首次 Rock)</span></dd>
-        </dl>
+        <!-- 元数据字段键值对 -->
+        <div>
+          <h3 class="detail-section-title" style="margin-bottom:8px">核心元数据</h3>
+          <dl class="meta-kv-table">
+            <dt>艺术家</dt><dd id="detail-artist">Tiger Band</dd>
+            <dt>专辑</dt><dd id="detail-album">Tiger Live</dd>
+            <dt>音轨 / 碟号</dt><dd id="detail-track">2 / 碟 1</dd>
+            <dt>状态</dt>
+            <dd>
+              <span id="detail-status" style="color:var(--state-edited); font-weight:600;">已编辑（待提交）</span>
+            </dd>
+          </dl>
+        </div>
 
-        <div class="group-title">封面与歌词</div>
-        <p class="legend" style="margin:0">
-          单张封面（获取 / 替换 / 嵌入）；歌词支持编辑与嵌入。二者随写回一并落盘。
-        </p>
+        <!-- 当前值 vs 首次值差异比对区 (BIZ-006 快照回滚可视化) -->
+        <div>
+          <h3 class="detail-section-title" style="margin-bottom:8px">当前修改 vs 首次读取快照</h3>
+          <div class="diff-box">
+            <div class="diff-row">
+              <span class="diff-label">音轨号</span>
+              <span>
+                <span class="diff-val-current">2</span>
+                <span class="diff-val-initial">(首次: 1)</span>
+              </span>
+            </div>
+            <div class="diff-row">
+              <span class="diff-label">流派</span>
+              <span>
+                <span class="diff-val-current">已清除</span>
+                <span class="diff-val-initial">(首次: Rock)</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 歌词内嵌状态 (FR-6) -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <h3 class="detail-section-title" style="margin:0">内嵌歌词</h3>
+            <span style="color:var(--accent); font-size:11px; cursor:pointer;">编辑歌词</span>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:8px; font-size:11px; color:var(--text-muted); font-family:monospace; max-height:80px; overflow-y:auto;">
+            [00:12.30]Welcome to the Tiger Stage<br/>
+            [00:16.80]Lights come down, we turn the page...
+          </div>
+        </div>
+
       </aside>
     </div>
 
-    <!-- 状态栏 -->
+    <!-- A6: 状态栏 (BIZ-009 节流、计数与跳过项) -->
     <div class="statusbar">
-      <span>共 <b>6</b> 首</span>
-      <span>已编辑 <b>1</b></span>
-      <span>已匹配 <b>1</b></span>
-      <span>失败 <b>1</b></span>
+      <span class="statusbar-metric">总曲目: <b>5</b> 首</span>
+      <span class="statusbar-metric">已编辑: <b style="color:var(--state-edited)">1</b></span>
+      <span class="statusbar-metric">已匹配: <b style="color:var(--state-matched)">1</b></span>
+      <span class="statusbar-metric">读取失败: <b style="color:var(--state-failed)">1</b></span>
+
       <span class="spacer"></span>
-      <span class="warn">在线匹配需遵守 1 请求/秒，节流中…</span>
-      <span class="link">跳过 1 项（不支持格式）</span>
+
+      <!-- 在线匹配节流提示 (BIZ-009) -->
+      <span class="throttle-warning">
+        <span class="throttle-spinner"></span>
+        MusicBrainz 限流保护中 (1 请求/秒，已用 2/5)
+      </span>
+
+      <!-- 跳过项提示入口 (FR-1) -->
+      <span class="skip-link" title="点击查看 1 个跳过文件的原因及路径" onclick="openModal('modal-skip-list')">
+        ⚠️ 跳过 1 项格式不支持文件
+      </span>
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       第 5 节交互弹窗快捷评审栏 (Modal Showcase Navigation)
+       ====================================================================== -->
+  <div class="modal-nav-bar" style="margin-top: 18px;">
+    <strong style="color:var(--text-bright); font-size:12px; margin-right:6px;">🚀 交互弹窗快捷评审：</strong>
+    <button class="modal-nav-btn" onclick="openModal('modal-online-match')">🌐 在线元数据匹配对比 (FR-5)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-write-confirm')">💾 确认写回与差异预览 (FR-8)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-rename-preview')">🏷️ 重命名与归档规则预览 (FR-7)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-batch-edit')">📝 批量修改标签字段 (FR-4)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-renumber-confirm')">🔢 按范围编号与异常提示 (BIZ-003)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-skip-list')">⚠️ 导入跳过项清单详情 (FR-1)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-settings')">⚙️ 系统首选项与播放器配置 (FR-9/C2)</button>
+  </div>
+
+  <!-- ======================================================================
+       设计规范手册（呈现 One Dark / One Light 标准色彩 Token 与语义规范）
+       ====================================================================== -->
+  <section class="spec-guide">
+    <h2>🎨 设计规范手册与 Token 定义（当前：<span id="spec-current-theme" style="color:var(--accent)">One Dark</span>）</h2>
+
+    <div class="palette-grid">
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--surface); color:var(--text-bright); border-bottom:1px solid var(--border);">
+          --surface
+        </div>
+        <div class="palette-info">
+          <strong>主体工作区表面</strong>
+          <span>One Dark: #282c34<br/>One Light: #fafafa</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--surface-2); color:var(--text-bright); border-bottom:1px solid var(--border);">
+          --surface-2
+        </div>
+        <div class="palette-info">
+          <strong>工具栏 / 侧面板次级表面</strong>
+          <span>One Dark: #21252b<br/>One Light: #f0f0f0</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--accent); color:var(--accent-contrast);">
+          --accent
+        </div>
+        <div class="palette-info">
+          <strong>主操作与选中强调色</strong>
+          <span>One Dark: #61afef (蓝)<br/>One Light: #4078f2 (蓝)</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--state-ok); color:#1e1e24;">
+          --state-ok
+        </div>
+        <div class="palette-info">
+          <strong>已保存 / 无待提交差异</strong>
+          <span>One Dark: #98c379 (绿)<br/>One Light: #50a14f (绿)</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--state-edited); color:#1e1e24;">
+          --state-edited
+        </div>
+        <div class="palette-info">
+          <strong>已编辑 / 待提交差异标记</strong>
+          <span>One Dark: #e5c07b (黄)<br/>One Light: #c18401 (琥珀)</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--state-matched); color:var(--accent-contrast);">
+          --state-matched
+        </div>
+        <div class="palette-info">
+          <strong>已匹配候选状态</strong>
+          <span>One Dark: #61afef<br/>One Light: #4078f2</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--state-failed); color:#ffffff;">
+          --state-failed
+        </div>
+        <div class="palette-info">
+          <strong>失败 / 损坏 / 跳过项</strong>
+          <span>One Dark: #e06c75 (红)<br/>One Light: #e45649 (红)</span>
+        </div>
+      </div>
+
+      <div class="palette-card">
+        <div class="palette-color" style="background:var(--state-purple); color:#ffffff;">
+          --state-purple
+        </div>
+        <div class="palette-info">
+          <strong>多碟分组标识 / 扩展字段</strong>
+          <span>One Dark: #c678dd (紫)<br/>One Light: #a626a4 (紫)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态语义说明 -->
+    <div class="state-legend-row">
+      <div class="legend-item"><span class="status-badge ok"></span> <strong>已保存</strong>：文件已落盘且无未提交修改</div>
+      <div class="legend-item"><span class="status-badge edited"></span> <strong>已编辑</strong>：单元格具有待写回改动（左侧金黄色强调标示）</div>
+      <div class="legend-item"><span class="status-badge matched"></span> <strong>已匹配</strong>：已应用在线候选并进入待提交态</div>
+      <div class="legend-item"><span class="status-badge failed"></span> <strong>失败/损坏</strong>：整行高亮浅红底色，可单独排查或跳过</div>
+      <div class="legend-item" style="color:var(--text-faint)"><strong>—</strong> 浅色占位字符（区别于输入了空格或空值）</div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ======================================================================
+     第 5 节交互弹窗模态层 (One Dark / One Light 全局模态体系)
+     ====================================================================== -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="handleBackdropClick(event)">
+
+  <!-- 1. 在线元数据匹配候选对比弹窗 (FR-5, BIZ-009) -->
+  <div class="modal-window" id="modal-online-match" style="max-width: 860px;">
+    <div class="modal-header">
+      <span class="modal-title">🌐 在线元数据匹配候选比较 (MusicBrainz / AcoustID)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- 节流状态指示 (BIZ-009) -->
+      <div class="modal-throttle-bar">
+        <span>⏱️ 客户端限流保护：MusicBrainz 严格遵守 ≤1.0 请求/秒；耗时 2.1s (已发起 3 次查询)</span>
+        <button class="btn ghost" style="padding: 2px 8px; font-size: 11px;">⏹ 停止查询</button>
+      </div>
+
+      <!-- 搜索关键词条 -->
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input type="text" class="form-input" style="flex:1" value="Tiger Band - Tiger Live (2026)" placeholder="输入专辑名或艺术家搜索…" />
+        <button class="btn primary" style="font-size:12px;">🔍 重新检索</button>
+      </div>
+
+      <!-- 候选结果列表 -->
+      <div>
+        <div class="form-label" style="margin-bottom:6px;">检索到 3 个候选匹配源（点击卡片查看与工作区差异）：</div>
+        <div class="candidate-card-list">
+          <div class="candidate-card selected" onclick="selectCandidate(this, 1)">
+            <div class="candidate-score">98%</div>
+            <div class="candidate-info">
+              <div class="candidate-title">Tiger Live (Official Japanese Release) · MusicBrainz</div>
+              <div class="candidate-sub">发布日期: 2026-05-18 · 地区: 日本 (JP) · 格式: CD · 包含 5 首曲目 (与工作区完全匹配)</div>
+            </div>
+            <span class="status-badge ok" title="高置信度推荐"></span>
+          </div>
+          <div class="candidate-card" onclick="selectCandidate(this, 2)">
+            <div class="candidate-score" style="color:var(--state-edited)">85%</div>
+            <div class="candidate-info">
+              <div class="candidate-title">Tiger Live [Deluxe 2CD Edition] · MusicBrainz</div>
+              <div class="candidate-sub">发布日期: 2026-06-01 · 地区: 美国 (US) · 包含 8 首曲目 (含额外 3 首 Bonus Tracks)</div>
+            </div>
+            <span class="status-badge edited"></span>
+          </div>
+          <div class="candidate-card" onclick="selectCandidate(this, 3)">
+            <div class="candidate-score" style="color:var(--text-muted)">74%</div>
+            <div class="candidate-info">
+              <div class="candidate-title">Tiger Acoustic Stage · AcoustID 声学指纹库</div>
+              <div class="candidate-sub">基于本地 Chromaprint 音频特征指纹比对 · 匹配到单曲指纹簇</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 候选字段与工作区比对表格 -->
+      <div>
+        <div class="form-label" style="margin-bottom:6px;">候选曲目清单与当前工作区标签差异比对：</div>
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>当前工作区字段值</th>
+              <th>候选源匹配值</th>
+              <th style="width:90px;">匹配判定</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Intro <span class="diff-badge-old">(Tiger Band)</span></td>
+              <td><span class="diff-badge-matched">Intro (Live 2026)</span> <span style="color:var(--text-bright)">Tiger Band</span></td>
+              <td><span style="color:var(--state-matched)">字段微调</span></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Main Theme</td>
+              <td><span class="diff-badge-matched">Main Theme (Live Official)</span></td>
+              <td><span style="color:var(--state-matched)">字段更新</span></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Interlude</td>
+              <td>Interlude</td>
+              <td><span style="color:var(--state-ok)">完全一致</span></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Encore</td>
+              <td><span class="diff-badge-matched">Encore (Live Special)</span></td>
+              <td><span style="color:var(--state-matched)">字段更新</span></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><span style="color:var(--state-failed)">Outro.wav (损坏项)</span></td>
+              <td><span class="diff-badge-matched">Outro (Speech & Band End)</span></td>
+              <td><span style="color:var(--state-edited)">可修复补齐</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-alert info">
+        ℹ️ 提示：点击“应用”后，标签将以【已匹配】状态存入内存编辑态，不会直接写入磁盘。只有在主界面点击【确认写回】后才会真正落盘。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="applyCandidate(false)">仅应用到当前选中行</button>
+      <button class="btn primary" onclick="applyCandidate(true)">批量应用到所有 5 首曲目</button>
     </div>
   </div>
 
-  <!-- ================= 设计规范 ================= -->
-  <section class="spec">
-    <h2>设计规范</h2>
-
-    <h4>色彩 token</h4>
-    <div class="swatches">
-      <div class="swatch"><div class="color" style="background:#eef0f3"></div><div class="meta"><b>--bg</b><span>#eef0f3 窗口外背景</span></div></div>
-      <div class="swatch"><div class="color" style="background:#ffffff"></div><div class="meta"><b>--surface</b><span>#ffffff 面板</span></div></div>
-      <div class="swatch"><div class="color" style="background:#f1f3f6"></div><div class="meta"><b>--surface-3</b><span>#f1f3f6 表头/工具栏</span></div></div>
-      <div class="swatch"><div class="color" style="background:#e2e5ea"></div><div class="meta"><b>--border</b><span>#e2e5ea 分隔线</span></div></div>
-      <div class="swatch"><div class="color" style="background:#1f2430"></div><div class="meta"><b>--text</b><span>#1f2430 正文</span></div></div>
-      <div class="swatch"><div class="color" style="background:#667085"></div><div class="meta"><b>--text-muted</b><span>#667085 次要</span></div></div>
-      <div class="swatch"><div class="color" style="background:#a9b0ba"></div><div class="meta"><b>--text-faint</b><span>#a9b0ba 空值占位</span></div></div>
-      <div class="swatch"><div class="color" style="background:#2f6fed"></div><div class="meta"><b>--accent</b><span>#2f6fed 主操作/已匹配</span></div></div>
-      <div class="swatch"><div class="color" style="background:#c07a00"></div><div class="meta"><b>--state-edited</b><span>#c07a00 已编辑</span></div></div>
-      <div class="swatch"><div class="color" style="background:#d1494b"></div><div class="meta"><b>--state-failed</b><span>#d1494b 失败</span></div></div>
-      <div class="swatch"><div class="color" style="background:#1f9d63"></div><div class="meta"><b>--state-ok</b><span>#1f9d63 已保存</span></div></div>
+  <!-- 2. 写回变更预览与确认弹窗 (FR-8, FR-7) -->
+  <div class="modal-window" id="modal-write-confirm" style="max-width: 780px;">
+    <div class="modal-header">
+      <span class="modal-title">💾 确认写回与文件归档落盘 (FR-8 / FR-7)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
+    <div class="modal-body">
+      <div class="modal-alert warning">
+        ⚠️ <strong>磁盘写入确认</strong>：即将向以下音频文件持久化写入 ID3 / VorbisComment 元数据，并同步执行归档重命名。提交前内存快照将保持不变，允许在会话内继续追踪。
+      </div>
 
-    <h4>状态标记</h4>
-    <div class="states">
-      <span class="item"><span class="marker ok"></span> 已保存（无待提交差异）</span>
-      <span class="item"><span class="marker edited"></span> 已编辑（存在待写回的字段）</span>
-      <span class="item"><span class="marker matched"></span> 已匹配（已应用在线候选）</span>
-      <span class="item"><span class="marker failed"></span> 失败（读取/匹配/写回失败，需处理）</span>
-      <span class="item" style="color:var(--text-faint)">— 空值占位（浅色，区别于有值）</span>
+      <!-- 变更清单 -->
+      <div>
+        <div class="form-label" style="margin-bottom:6px;">将要落盘的变更明细 (共 2 首有未提交变更)：</div>
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th>目标文件</th>
+              <th>元数据字段变动 (当前编辑值 vs 最近落盘值)</th>
+              <th>重命名 / 归档目标路径</th>
+              <th style="width:70px;">校验</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>01-02 Main Theme.flac</strong></td>
+              <td>
+                <div>音轨号: <span class="diff-badge-old">1</span> → <span class="diff-badge-new">2</span></div>
+                <div>流派: <span class="diff-badge-old">Rock</span> → <span style="color:var(--state-edited); font-style:italic;">[已显式清除]</span></div>
+              </td>
+              <td style="color:var(--text-muted); font-size:11.5px;">保持当前路径 (未启用归档)</td>
+              <td><span style="color:var(--state-ok)">✓ 就绪</span></td>
+            </tr>
+            <tr>
+              <td><strong>02-01 Encore.flac</strong></td>
+              <td>
+                <div>标题: <span class="diff-badge-old">Encore</span> → <span class="diff-badge-matched">Encore (Live Special)</span></div>
+                <div>专辑: <span class="diff-badge-old">Tiger Live</span> → <span class="diff-badge-matched">Tiger Live (Official)</span></div>
+              </td>
+              <td>
+                <div style="color:var(--state-ok); font-size:11.5px;">
+                  📁 Tiger Band/Tiger Live/01 - Encore.flac
+                </div>
+              </td>
+              <td><span style="color:var(--state-ok)">✓ 无冲突</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 异常隔离保障说明 -->
+      <div style="background:var(--surface-3); border:1px solid var(--border); padding:10px 12px; border-radius:4px; font-size:11.5px; color:var(--text-muted);">
+        🔒 <strong>安全隔离机制</strong>：如果其中单个文件在写入时发生 I/O 错误或被其他程序占用，应用将隔离该失败项并回滚其内部临时状态，其余成功写入的文件不受影响。
+      </div>
     </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="executeWriteBack()">确认写入磁盘</button>
+    </div>
+  </div>
 
-    <h4>单元格与排版</h4>
-    <p class="legend">
-      表格基础字号 13px、行高 30px、表头 11.5px/半粗；数字列右对齐并使用等宽数字。<br />
-      可编辑单元格为白底，已编辑单元格加浅琥珀底并在左侧留 2px 强调条；只读列（如状态、#）保持默认底色。<br />
-      多碟专辑以分组行分隔（碟 1 / 碟 2），组内按音轨号排列。<br />
-      横向可滚动，列显隐通过次工具栏的「列显隐」控制。
-    </p>
-  </section>
+  <!-- 3. 重命名与目录归档规则预览弹窗 (FR-7) -->
+  <div class="modal-window" id="modal-rename-preview" style="max-width: 800px;">
+    <div class="modal-header">
+      <span class="modal-title">🏷️ 重命名与目录归档规则预览 (FR-7)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- 模板配置区 -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">内置固定命名模板 (BIZ-002 首版范围)：</label>
+          <select class="form-select" id="select-rename-tpl" onchange="updateRenamePreview()">
+            <option value="1">{artist}/{album}/{track:02d} - {title}.{ext} (推荐)</option>
+            <option value="2">{album}/{track:02d}. {title} - {artist}.{ext}</option>
+            <option value="3">{disc:02d}-{track:02d} {title}.{ext}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">归档目标根目录：</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" class="form-input" style="flex:1" value="D:\Music\ArchivedLibrary\" readonly />
+            <button class="btn ghost" style="padding:4px 8px;">浏览…</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 预览表格 -->
+      <div>
+        <div class="form-label" style="margin-bottom:6px;">新文件名与路径预览 (自动处理非法字符与重名)：</div>
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th style="width:130px;">原文件名</th>
+              <th>重命名后目标相对路径与文件名</th>
+              <th style="width:95px;">合规状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Intro.flac</td>
+              <td><code>Tiger Band/Tiger Live/01 - Intro.flac</code></td>
+              <td><span style="color:var(--state-ok)">✓ 正常</span></td>
+            </tr>
+            <tr>
+              <td>Main Theme.flac</td>
+              <td><code>Tiger Band/Tiger Live/02 - Main Theme.flac</code></td>
+              <td><span style="color:var(--state-ok)">✓ 正常</span></td>
+            </tr>
+            <tr>
+              <td>Interlude.flac</td>
+              <td><code>Tiger Band/Tiger Live/03 - Interlude.flac</code></td>
+              <td><span style="color:var(--state-ok)">✓ 正常</span></td>
+            </tr>
+            <tr>
+              <td>Encore:Live?.flac</td>
+              <td><code>Tiger Band/Tiger Live/01 - Encore_Live_.flac</code></td>
+              <td><span style="color:var(--state-edited)" title="非法字符 : ? 已自动替换为 _">⚠️ 字符已清洗</span></td>
+            </tr>
+            <tr>
+              <td>Outro.wav</td>
+              <td style="color:var(--state-failed)"><code>[跳过] RIFF损坏文件不参与归档重命名</code></td>
+              <td><span style="color:var(--state-failed)">✕ 跳过项</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-alert info">
+        ℹ️ 本操作仅将重命名规则排入待执行任务队列，需与【确认写回】一同落盘执行。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="applyRenamePlan()">应用此重命名规则</button>
+    </div>
+  </div>
+
+  <!-- 4. 批量修改标签字段弹窗 (FR-4) -->
+  <div class="modal-window" id="modal-batch-edit" style="max-width: 520px;">
+    <div class="modal-header">
+      <span class="modal-title">📝 批量修改标签字段 (FR-4)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px; color:var(--text-muted);">
+        当前选区：已选中 <strong style="color:var(--text-bright)">3</strong> 首曲目。批量修改将直接存入编辑态。
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">选择要统一修改的标签字段：</label>
+        <select class="form-select" id="batch-field-select">
+          <option value="artist">艺术家 (Artist)</option>
+          <option value="album">专辑 (Album)</option>
+          <option value="album_artist">专辑艺术家 (Album Artist)</option>
+          <option value="year">年份 (Year)</option>
+          <option value="genre" selected>流派 (Genre)</option>
+          <option value="composer">作曲 (Composer)</option>
+          <option value="comment">注释 (Comment)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">设置新数值：</label>
+        <input type="text" class="form-input" id="batch-value-input" value="Alternative Rock" placeholder="输入要赋的值…" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="batch-clear-check" onchange="toggleBatchClear(this)" />
+          <span style="color:var(--state-edited); font-weight:500;">显式「清除该字段」</span>
+          <span style="color:var(--text-muted); font-size:11px;">(落盘时将删除选中曲目的对应标签帧)</span>
+        </label>
+      </div>
+
+      <div class="modal-alert warning" id="batch-clear-warning" style="display:none;">
+        ⚠️ 注意：已勾选清除字段。提交后该元数据将从文件中移除。可通过【提交前回滚】恢复初始值。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="applyBatchEdit()">应用批量修改</button>
+    </div>
+  </div>
+
+  <!-- 5. 按范围编号确认与异常提示弹窗 (FR-3, BIZ-003) -->
+  <div class="modal-window" id="modal-renumber-confirm" style="max-width: 540px;">
+    <div class="modal-header">
+      <span class="modal-title">🔢 按范围自动分配音轨号 (FR-3 / BIZ-003)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px; color:var(--text-muted);">
+        当前选定范围：<strong style="color:var(--text-bright)">5</strong> 首曲目。
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">起始音轨序号：</label>
+          <input type="number" class="form-input" value="1" min="1" max="999" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">编号策略：</label>
+          <select class="form-select">
+            <option>按碟号 (Disc) 分组独立从 1 编号 (默认)</option>
+            <option>跨碟全局连续递增编号</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- BIZ-003 核心规则异常提示 -->
+      <div class="modal-alert warning">
+        <div>
+          <div style="font-weight:600; margin-bottom:2px;">⚠️ 检测到选区内存在缺少碟号的曲目 (BIZ-003)</div>
+          <div>曲目 <strong>Outro.wav</strong> 的碟号为空。根据业务规则，缺少碟号的曲目<strong>不参与分组编号</strong>。</div>
+          <div style="margin-top:4px;">是否仍对范围内其余 <strong>4</strong> 首具有碟号的曲目继续执行编号？</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="executeRenumber()">排除缺碟曲目并继续编号</button>
+    </div>
+  </div>
+
+  <!-- 6. 导入跳过项清单详情弹窗 (FR-1) -->
+  <div class="modal-window" id="modal-skip-list" style="max-width: 680px;">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ 导入跳过项详情 (FR-1 异常不阻断)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="color:var(--text-muted); font-size:12px;">
+        在本次扫描导入过程中，共有 <strong style="color:var(--state-failed)">1</strong> 个文件被跳过，未阻断其余有效音频正常导入：
+      </div>
+
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th style="width:140px;">文件名</th>
+            <th style="width:70px;">扩展名</th>
+            <th style="width:110px;">跳过原因</th>
+            <th>详细诊断信息 / 路径</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>bonus_track.wma</strong></td>
+            <td><code>.wma</code></td>
+            <td><span style="color:var(--state-edited)">格式不受支持</span></td>
+            <td style="color:var(--text-muted); font-size:11.5px;">非 PRD 支持范围 (MP3/M4A/FLAC/OGG/WAV)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="background:var(--surface-3); border:1px solid var(--border); padding:10px 12px; border-radius:4px; font-size:11.5px; color:var(--text-muted);">
+        💡 提示：对于格式不支持或损坏文件，可通过系统转码工具处理为 FLAC 或 MP3 格式后再次导入。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">复制错误路径</button>
+      <button class="btn primary" onclick="closeModal()">确定</button>
+    </div>
+  </div>
+
+  <!-- 7. 系统首选项与播放器配置弹窗 (FR-9, C2, BIZ-009) -->
+  <div class="modal-window" id="modal-settings" style="max-width: 660px;">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ 系统首选项与配置</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- 设置 Tab 切换 -->
+      <div style="display:flex; border-bottom:1px solid var(--border); gap:8px;">
+        <button class="btn active" id="tab-btn-pref-1" onclick="switchSettingsTab(1)" style="border-bottom:2px solid var(--accent); border-radius:0;">
+          🎧 外部播放器试听 (FR-9)
+        </button>
+        <button class="btn ghost" id="tab-btn-pref-2" onclick="switchSettingsTab(2)" style="border-radius:0;">
+          🌐 在线服务与限流 (FR-5 / BIZ-009)
+        </button>
+      </div>
+
+      <!-- Tab 1 内容：外部播放器 -->
+      <div id="tab-pref-pane-1" style="display:flex; flex-direction:column; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">外部音频播放器可执行程序路径 (如 foobar2000, VLC 等)：</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="form-input" style="flex:1" value="C:\Program Files\foobar2000\foobar2000.exe" />
+            <button class="btn ghost">浏览…</button>
+          </div>
+          <span style="font-size:11px; color:var(--text-muted);">
+            应用本身不内置播放器核心；触发试听时将通过系统进程拉起该播放器打开当前选中的音频文件。
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">命令行启动参数模板：</label>
+          <input type="text" class="form-input" value="&quot;%filepath%&quot;" />
+        </div>
+
+        <div style="display:flex; justify-content:flex-start;">
+          <button class="btn" onclick="testPlayNotice()">▶ 运行试听测试</button>
+        </div>
+      </div>
+
+      <!-- Tab 2 内容：在线服务 -->
+      <div id="tab-pref-pane-2" style="display:none; flex-direction:column; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">MusicBrainz User-Agent 客户端标识 (BIZ-009 必须提供有效联系方式)：</label>
+          <input type="text" class="form-input" value="TigerMusicTagEditor/1.0.0 ( contact@aiasti.com )" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">AcoustID 开发者应用 API Key (用于音频特征指纹查询)：</label>
+          <input type="text" class="form-input" value="c8f49a8b_test_dummy_key" />
+        </div>
+
+        <div class="modal-alert info">
+          ⏱️ <strong>强制客户端节流策略 (BIZ-009)</strong><br/>
+          • MusicBrainz：固定 ≤ 1.0 次请求/秒，超额将被 429 封禁。<br/>
+          • AcoustID：固定 ≤ 3.0 次请求/秒。<br/>
+          • 若遭遇服务端 429 或 503 限流响应，应用将自动按 Retry-After 标头指数退避重试。
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="closeModal()">保存首选项</button>
+    </div>
+  </div>
+
 </div>
 
+<!-- 原型轻量交互演示逻辑 -->
 <script>
-  // 行选择：点击数据行高亮，并更新详情面板标题
-  document.querySelectorAll('tbody tr.data').forEach(function (row) {
-    row.addEventListener('click', function () {
-      document.querySelectorAll('tbody tr.data').forEach(function (r) { r.classList.remove('selected'); });
-      row.classList.add('selected');
-      var h = document.querySelector('.detail h3');
-      if (h) { h.textContent = '曲目详情 · ' + (row.getAttribute('data-title') || ''); }
+  // 1. 主题切换核心实现
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('btn-theme-dark').classList.toggle('active', theme === 'dark');
+    document.getElementById('btn-theme-light').classList.toggle('active', theme === 'light');
+    document.getElementById('spec-current-theme').textContent = theme === 'dark' ? 'One Dark' : 'One Light';
+  }
+
+  // 2. 匹配粒度切换 (FR-5)
+  function setGranularity(gran) {
+    document.getElementById('btn-gran-album').classList.toggle('active', gran === 'album');
+    document.getElementById('btn-gran-track').classList.toggle('active', gran === 'track');
+  }
+
+  // 3. 列显隐联动切换 (A4)
+  var extraHidden = false;
+  function toggleExtraColumns() {
+    extraHidden = !extraHidden;
+    var cols = document.querySelectorAll('.col-extra');
+    cols.forEach(function(el) {
+      el.style.display = extraHidden ? 'none' : '';
     });
+    document.getElementById('chip-cols').textContent = extraHidden ? '列显隐 ▾ (已隐藏扩展)' : '列显隐 ▾';
+  }
+
+  // 4. 行选择联动详情面板 (A4 -> A5)
+  function selectRow(rowEl, title, artist, album, year, genre, status) {
+    document.querySelectorAll('.track-row').forEach(function(r) { r.classList.remove('selected'); });
+    rowEl.classList.add('selected');
+
+    document.getElementById('detail-title').textContent = title;
+    document.getElementById('detail-artist').textContent = artist;
+    document.getElementById('detail-album').textContent = album;
+    
+    var stEl = document.getElementById('detail-status');
+    if (status === 'edited') {
+      stEl.textContent = '已编辑（待提交）';
+      stEl.style.color = 'var(--state-edited)';
+    } else if (status === 'matched') {
+      stEl.textContent = '已匹配在线候选';
+      stEl.style.color = 'var(--state-matched)';
+    } else if (status === 'failed') {
+      stEl.textContent = '文件异常 / 损坏';
+      stEl.style.color = 'var(--state-failed)';
+    } else {
+      stEl.textContent = '已保存（无差异）';
+      stEl.style.color = 'var(--state-ok)';
+    }
+  }
+
+  // =========================================================================
+  // 5. 交互弹窗模态体系驱动 (Modal System Logic)
+  // =========================================================================
+  var activeModalId = null;
+
+  function openModal(modalId) {
+    activeModalId = modalId;
+    var backdrop = document.getElementById('modal-backdrop');
+    var allModals = document.querySelectorAll('.modal-window');
+    allModals.forEach(function(m) { m.classList.remove('active'); });
+
+    var target = document.getElementById(modalId);
+    if (target) {
+      target.classList.add('active');
+      backdrop.classList.add('open');
+    }
+  }
+
+  function closeModal() {
+    var backdrop = document.getElementById('modal-backdrop');
+    backdrop.classList.remove('open');
+    var allModals = document.querySelectorAll('.modal-window');
+    allModals.forEach(function(m) { m.classList.remove('active'); });
+    activeModalId = null;
+  }
+
+  function handleBackdropClick(event) {
+    if (event.target.id === 'modal-backdrop') {
+      closeModal();
+    }
+  }
+
+  // ESC 键关闭弹窗支持
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && activeModalId) {
+      closeModal();
+    }
   });
 
-  // 列显隐演示：点击「列显隐」依次隐藏/显示 作词、编曲 两列
-  (function () {
-    var chip = document.querySelector('.subbar .chip');
-    var hidden = false;
-    if (!chip) { return; }
-    chip.style.cursor = 'pointer';
-    chip.addEventListener('click', function () {
-      hidden = !hidden;
-      document.querySelectorAll('[data-col="lyricist"], [data-col="arranger"]').forEach(function (el) {
-        el.style.display = hidden ? 'none' : '';
-      });
-      chip.textContent = hidden ? '列显隐 ▾（已隐藏 作词/编曲）' : '列显隐 ▾';
-    });
-  })();
+  // 弹窗内部交互逻辑演示
+  function selectCandidate(cardEl, idx) {
+    document.querySelectorAll('.candidate-card').forEach(function(c) { c.classList.remove('selected'); });
+    cardEl.classList.add('selected');
+  }
+
+  function applyCandidate(isBatch) {
+    alert(isBatch ? '已批量将匹配候选应用到所有曲目！状态变为【已匹配】。' : '已将候选应用到当前选中行！');
+    closeModal();
+  }
+
+  function executeWriteBack() {
+    alert('落盘写回成功！已更新 2 个文件的元数据，首次快照保持隔离不变。');
+    closeModal();
+  }
+
+  function applyRenamePlan() {
+    alert('重命名规则已排入待提交队列，将在写回时统一执行归档！');
+    closeModal();
+  }
+
+  function toggleBatchClear(cb) {
+    var valInput = document.getElementById('batch-value-input');
+    var warnBox = document.getElementById('batch-clear-warning');
+    valInput.disabled = cb.checked;
+    warnBox.style.display = cb.checked ? 'flex' : 'none';
+  }
+
+  function applyBatchEdit() {
+    var isClear = document.getElementById('batch-clear-check').checked;
+    var field = document.getElementById('batch-field-select').value;
+    alert(isClear ? ('已显式标记清除选区曲目的 [' + field + '] 字段！') : ('已批量将选区曲目的 [' + field + '] 设置为新值！'));
+    closeModal();
+  }
+
+  function executeRenumber() {
+    alert('已排除缺碟号曲目 Outro.wav，成功为其馀 4 首曲目连续分配音轨序号！');
+    closeModal();
+  }
+
+  function switchSettingsTab(tabNum) {
+    document.getElementById('tab-btn-pref-1').classList.toggle('active', tabNum === 1);
+    document.getElementById('tab-btn-pref-2').classList.toggle('active', tabNum === 2);
+    document.getElementById('tab-pref-pane-1').style.display = tabNum === 1 ? 'flex' : 'none';
+    document.getElementById('tab-pref-pane-2').style.display = tabNum === 2 ? 'flex' : 'none';
+  }
+
+  function triggerAudition() {
+    alert('正在拉起外部播放器 (foobar2000) 试听当前曲目: 01-02 Main Theme.flac\n(若未配置播放器路径，将自动弹窗引导前往设置)');
+  }
+
+  function triggerImportNotice() {
+    alert('触发桌面文件对话框 (走 Electron preload API，渲染层无 Node.js 直接权限)。');
+  }
+
+  function triggerRollbackDemo() {
+    if (confirm('确定提交前回滚？将放弃未提交编辑态并恢复首次读取快照与初始排序 (BIZ-008)')) {
+      alert('已成功回滚至首次元数据快照并重置曲目顺序！');
+    }
+  }
+
+  function testPlayNotice() {
+    alert('已成功向系统发送启动指令：C:\\Program Files\\foobar2000\\foobar2000.exe "sample.flac"');
+  }
 </script>
+
 </body>
 </html>
