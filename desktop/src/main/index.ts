@@ -6,12 +6,6 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'mp4', 'flac', 'ogg', 'wav']
 
 /**
- * 首次渲染层加载时提示清空工作区：工作区为纯会话状态，
- * 关闭重开必须为空，不依赖后端进程是否仍在运行（BIZ-017）。
- */
-let workspaceResetPending = true
-
-/**
  * 注册渲染层可用的受限能力（BIZ-013）。
  *
  * <p>渲染层不能直接访问文件系统，文件选择统一由主进程的 dialog 完成；
@@ -36,12 +30,9 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('backend:config', () => {
-    const resetWorkspace = workspaceResetPending
-    workspaceResetPending = false
     return {
       baseUrl: process.env['TIGER_BACKEND_URL'] ?? 'http://127.0.0.1:8080',
-      token: process.env['TIGER_APP_TOKEN'] ?? 'dev-local-token',
-      resetWorkspace
+      token: process.env['TIGER_APP_TOKEN'] ?? 'dev-local-token'
     }
   })
 }

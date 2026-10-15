@@ -9,7 +9,6 @@ export interface WorkspaceView {
 interface BackendConfig {
   baseUrl: string
   token: string
-  resetWorkspace: boolean
 }
 
 let cachedConfig: Promise<BackendConfig> | null = null
@@ -57,13 +56,7 @@ export function removeTracks(ids: number[]): Promise<WorkspaceView> {
   })
 }
 
-/** 是否需要在应用启动时清空工作区（BIZ-017：工作区不跨重启留存）。 */
-export async function shouldClearWorkspaceOnStart(): Promise<boolean> {
-  const { resetWorkspace } = await backendConfig()
-  return resetWorkspace
-}
-
-/** 清空工作区（会话内状态，BIZ-017）。 */
+/** 清空工作区（会话内状态；每次渲染层加载都视为新会话，BIZ-017、BIZ-027）。 */
 export function clearWorkspace(): Promise<WorkspaceView> {
   return request<WorkspaceView>('/api/workspace/clear', { method: 'POST' })
 }
