@@ -1,16 +1,17 @@
 package com.aiasti.tiger.api;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** S1 验证：工作区接口与访问 token（FR-1、BIZ-013）。 */
 @SpringBootTest(properties = "app.security.token=test-token")
@@ -57,5 +58,16 @@ class WorkspaceApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tracks").isEmpty())
                 .andExpect(jsonPath("$.skipped").isEmpty());
+    }
+
+    /** 桌面壳与本地服务不同源，CORS 预检必须放行且不要求 token（否则渲染层无法调用）。 */
+    @Test
+    void corsPreflightIsAllowedWithoutToken() throws Exception {
+        mockMvc.perform(options("/api/workspace")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "X-App-Token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "*"));
     }
 }

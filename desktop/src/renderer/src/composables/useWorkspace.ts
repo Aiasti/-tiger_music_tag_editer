@@ -1,205 +1,6 @@
 import { ref, computed } from 'vue'
-import type { TrackItem, TrackTagData, EditableTagField, ColumnDefinition } from '../types'
-
-// 初始化演示数据集（对应原型中的 5 首包含各状态样本）
-const initialMockTracks: TrackItem[] = [
-  {
-    id: 1,
-    filename: '01. Intro.flac',
-    ext: 'flac',
-    filePath: 'D:/Music/Tiger Live 2026/01. Intro.flac',
-    duration: '02:15',
-    size: '18.4 MB',
-    status: 'saved',
-    tags: {
-      title: 'Intro',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '01',
-      discNo: '1',
-      year: '2026',
-      genre: 'Rock',
-      composer: 'Tiger Band',
-      lyricist: 'Tiger Band',
-      arranger: 'Tiger Band',
-      comment: 'Live Recording 24bit/96kHz',
-      lyrics: '[00:00.00]Tiger Band - Intro\n[00:05.10]Tokyo Arena Live Opening'
-    },
-    initialSnapshot: {
-      title: 'Intro',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '01',
-      discNo: '1',
-      year: '2026',
-      genre: 'Rock',
-      composer: 'Tiger Band',
-      lyricist: 'Tiger Band',
-      arranger: 'Tiger Band',
-      comment: 'Live Recording 24bit/96kHz',
-      lyrics: '[00:00.00]Tiger Band - Intro\n[00:05.10]Tokyo Arena Live Opening'
-    }
-  },
-  {
-    id: 2,
-    filename: '02. Main Theme.flac',
-    ext: 'flac',
-    filePath: 'D:/Music/Tiger Live 2026/02. Main Theme.flac',
-    duration: '04:32',
-    size: '34.2 MB',
-    status: 'edited',
-    tags: {
-      title: 'Main Theme (Live Edit)',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '02',
-      discNo: '1',
-      year: '2026',
-      genre: 'Hard Rock',
-      composer: 'Tiger Band',
-      lyricist: 'Tiger Band',
-      arranger: 'Tiger Band',
-      comment: 'Electric Guitar Solo Intro',
-      lyrics: '[00:00.00]Tiger Band - Main Theme\n[00:15.20]The spotlight turns on the stage tonight\n[00:19.80]Feel the heartbeat, feel the burning light\n[00:24.40]Electric roar, echoing through the hall\n[00:29.10]Together we stand, we will never fall'
-    },
-    initialSnapshot: {
-      title: 'Main Theme',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '02',
-      discNo: '1',
-      year: '2026',
-      genre: 'Rock',
-      composer: 'Tiger Band',
-      lyricist: 'Tiger Band',
-      arranger: 'Tiger Band',
-      comment: 'Electric Guitar Solo Intro',
-      lyrics: ''
-    }
-  },
-  {
-    id: 3,
-    filename: '03. Interlude.mp3',
-    ext: 'mp3',
-    filePath: 'D:/Music/Tiger Live 2026/03. Interlude.mp3',
-    duration: '01:45',
-    size: '4.2 MB',
-    status: 'saved',
-    tags: {
-      title: 'Interlude (Piano Solo)',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '03',
-      discNo: '1',
-      year: '2026',
-      genre: 'Classical',
-      composer: 'Tiger Band',
-      lyricist: '—',
-      arranger: 'Tiger Band',
-      comment: 'Acoustic Grand Piano',
-      lyrics: ''
-    },
-    initialSnapshot: {
-      title: 'Interlude (Piano Solo)',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '03',
-      discNo: '1',
-      year: '2026',
-      genre: 'Classical',
-      composer: 'Tiger Band',
-      lyricist: '—',
-      arranger: 'Tiger Band',
-      comment: 'Acoustic Grand Piano',
-      lyrics: ''
-    }
-  },
-  {
-    id: 4,
-    filename: '04. Encore.m4a',
-    ext: 'm4a',
-    filePath: 'D:/Music/Tiger Live 2026/04. Encore.m4a',
-    duration: '05:10',
-    size: '12.8 MB',
-    status: 'matched',
-    tags: {
-      title: 'Encore (Special Final)',
-      artist: 'Tiger Band & Guests',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '04',
-      discNo: '1',
-      year: '2026',
-      genre: 'Rock',
-      composer: 'Tiger Band',
-      lyricist: 'Tiger Band',
-      arranger: 'Tiger Band',
-      comment: 'Crowd Cheering Extended Version',
-      lyrics: '[00:00.00]Tiger Band - Encore\n[00:05.00]Thank you all for this wonderful night\n[00:12.30]One more song before the dawn arrives'
-    },
-    initialSnapshot: {
-      title: 'Encore',
-      artist: 'Tiger Band',
-      album: 'Live at Tokyo Arena 2026',
-      albumArtist: 'Tiger Band',
-      trackNo: '04',
-      discNo: '1',
-      year: '2026',
-      genre: 'Rock',
-      composer: 'Tiger Band',
-      lyricist: 'Tiger Band',
-      arranger: 'Tiger Band',
-      comment: '',
-      lyrics: ''
-    }
-  },
-  {
-    id: 5,
-    filename: '05. Outro.wav',
-    ext: 'wav',
-    filePath: 'D:/Music/Tiger Live 2026/05. Outro.wav',
-    duration: '00:45',
-    size: '8.1 MB',
-    status: 'failed',
-    failureReason: '音频流异常截断或头部损坏 (CorruptHeaderException)',
-    tags: {
-      title: '—',
-      artist: '—',
-      album: '—',
-      albumArtist: '—',
-      trackNo: '—',
-      discNo: '—',
-      year: '—',
-      genre: '—',
-      composer: '—',
-      lyricist: '—',
-      arranger: '—',
-      comment: '—',
-      lyrics: ''
-    },
-    initialSnapshot: {
-      title: '—',
-      artist: '—',
-      album: '—',
-      albumArtist: '—',
-      trackNo: '—',
-      discNo: '—',
-      year: '—',
-      genre: '—',
-      composer: '—',
-      lyricist: '—',
-      arranger: '—',
-      comment: '—',
-      lyrics: ''
-    }
-  }
-]
+import type { TrackItem, TrackTagData, EditableTagField, ColumnDefinition, SkipItem } from '../types'
+import { fetchWorkspace, importPaths, type WorkspaceView } from '../api/client'
 
 // 字段列定义（12 个核心元数据列 + 歌词按钮列 + 行号/状态）
 const initialColumns: ColumnDefinition[] = [
@@ -221,9 +22,13 @@ const initialColumns: ColumnDefinition[] = [
   { key: 'duration', label: '时长', minWidth: 60, visible: true, editable: false }
 ]
 
-const tracks = ref<TrackItem[]>(JSON.parse(JSON.stringify(initialMockTracks)))
+// 工作区数据来自后端（S1：导入与展示；编辑能力仍为内存态，写回属 S2）
+const tracks = ref<TrackItem[]>([])
+const skipped = ref<SkipItem[]>([])
+const importing = ref(false)
+const importError = ref<string | null>(null)
 const columns = ref<ColumnDefinition[]>(initialColumns)
-const selectedTrackId = ref<number | null>(2)
+const selectedTrackId = ref<number | null>(null)
 
 // 行内编辑状态
 const editingCell = ref<{
@@ -245,6 +50,42 @@ export function useWorkspace() {
   })
 
   const isWorkspaceDirty = computed(() => uncommittedCount.value > 0)
+
+  const applyView = (view: WorkspaceView) => {
+    tracks.value = view.tracks
+    skipped.value = view.skipped
+    if (tracks.value.length > 0 && selectedTrackId.value === null) {
+      selectedTrackId.value = tracks.value[0].id
+    }
+  }
+
+  // 拉取当前工作区（会话内存态）
+  const refreshWorkspace = async (): Promise<void> => {
+    try {
+      applyView(await fetchWorkspace())
+      importError.value = null
+    } catch (error) {
+      importError.value = error instanceof Error ? error.message : String(error)
+    }
+  }
+
+  // 导入：主进程弹窗选文件/文件夹 → 后端读取标签 → 更新工作区 (FR-1)
+  const importFromDialog = async (mode: 'files' | 'folder'): Promise<void> => {
+    importing.value = true
+    importError.value = null
+    try {
+      const paths =
+        mode === 'files' ? await window.api.selectAudioFiles() : await window.api.selectFolder()
+      if (paths.length === 0) {
+        return
+      }
+      applyView(await importPaths(paths, mode === 'folder'))
+    } catch (error) {
+      importError.value = error instanceof Error ? error.message : String(error)
+    } finally {
+      importing.value = false
+    }
+  }
 
   // 选中某行
   const selectTrack = (trackId: number) => {
@@ -325,7 +166,7 @@ export function useWorkspace() {
     const currentIndex = validTracks.findIndex((t) => t.id === trackId)
     if (currentIndex === -1) return
 
-    let nextIndex = direction === 'down' ? currentIndex + 1 : currentIndex - 1
+    const nextIndex = direction === 'down' ? currentIndex + 1 : currentIndex - 1
     if (nextIndex >= 0 && nextIndex < validTracks.length) {
       const nextTrack = validTracks[nextIndex]
       editingCell.value = { trackId: nextTrack.id, field }
@@ -348,8 +189,7 @@ export function useWorkspace() {
   // 批量更新歌词 (BIZ-012)
   const applyBatchLyrics = (lyricsMap: Record<number, string>) => {
     for (const [idStr, lyricsText] of Object.entries(lyricsMap)) {
-      const tid = Number(idStr)
-      applyLyricsToTrack(tid, lyricsText)
+      applyLyricsToTrack(Number(idStr), lyricsText)
     }
   }
 
@@ -408,6 +248,9 @@ export function useWorkspace() {
 
   return {
     tracks,
+    skipped,
+    importing,
+    importError,
     columns,
     selectedTrackId,
     selectedTrack,
@@ -415,6 +258,8 @@ export function useWorkspace() {
     editingCell,
     uncommittedCount,
     isWorkspaceDirty,
+    refreshWorkspace,
+    importFromDialog,
     selectTrack,
     startInlineEdit,
     commitInlineEdit,

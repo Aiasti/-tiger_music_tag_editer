@@ -1,15 +1,15 @@
 package com.aiasti.tiger.api;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * 本地服务访问校验（BIZ-013）。
@@ -32,7 +32,10 @@ public class AppTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return expectedToken.isBlank() || HEALTH_PATH.equals(request.getRequestURI());
+        // CORS 预检请求按规范不携带自定义请求头，必须放行；其响应不包含业务数据
+        return expectedToken.isBlank()
+                || HEALTH_PATH.equals(request.getRequestURI())
+                || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
     @Override

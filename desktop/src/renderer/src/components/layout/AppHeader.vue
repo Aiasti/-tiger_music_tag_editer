@@ -5,15 +5,19 @@ import { useWorkspace } from '../../composables/useWorkspace'
 
 const { theme, toggleTheme } = useTheme()
 const { openModal } = useModals()
-const { uncommittedCount, rollbackAll } = useWorkspace()
+const { uncommittedCount, rollbackAll, importFromDialog, importing, skipped } = useWorkspace()
 
-const handleImportFiles = () => {
-  openModal('skip-list')
+const runImport = async (mode: 'files' | 'folder') => {
+  await importFromDialog(mode)
+  // 有跳过项时单独提示（FR-1），不阻断其余文件
+  if (skipped.value.length > 0) {
+    openModal('skip-list')
+  }
 }
 
-const handleImportFolder = () => {
-  openModal('skip-list')
-}
+const handleImportFiles = () => runImport('files')
+
+const handleImportFolder = () => runImport('folder')
 
 const handlePlayExternal = () => {
   openModal('settings')
@@ -49,12 +53,13 @@ const handleRollback = () => {
     <!-- A2: 主工具栏 (Primary Toolbar) -->
     <div class="toolbar primary-toolbar">
       <div class="toolbar-group">
-        <button class="btn" title="导入单个或多个音频文件 (FR-1)" @click="handleImportFiles">
+        <button class="btn" title="导入单个或多个音频文件 (FR-1)" :disabled="importing" @click="handleImportFiles">
           📁 导入文件
         </button>
-        <button class="btn" title="递归扫描导入文件夹 (FR-1)" @click="handleImportFolder">
+        <button class="btn" title="递归扫描导入文件夹 (FR-1)" :disabled="importing" @click="handleImportFolder">
           📂 导入文件夹
         </button>
+        <span v-if="importing" class="importing-hint">导入中…</span>
       </div>
 
       <div class="toolbar-divider"></div>
@@ -241,6 +246,10 @@ const handleRollback = () => {
 .label-muted {
   font-size: 11.5px;
   color: var(--text-muted);
+}
+.importing-hint {
+  font-size: 11.5px;
+  color: var(--accent);
 }
 .writeback-btn {
   position: relative;

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
 
-const { tracks, uncommittedCount } = useWorkspace()
+const { tracks, uncommittedCount, skipped } = useWorkspace()
 const { openModal } = useModals()
 
-const failedCount = tracks.value.filter((t) => t.status === 'failed').length
+const failedCount = computed(() => tracks.value.filter((t) => t.status === 'failed').length)
 </script>
 
 <template>
@@ -33,9 +34,15 @@ const failedCount = tracks.value.filter((t) => t.status === 'failed').length
         <span>MusicBrainz 限流保护: <strong>≤1.0 req/s</strong> (空闲)</span>
       </div>
 
-      <button class="skip-btn" title="查看导入时因格式不支持或解析损坏被跳过的文件清单 (FR-1)" @click="openModal('skip-list')">
-        ⚠️ 1 项被跳过 (点击查看详情)
+      <button
+        v-if="skipped.length > 0"
+        class="skip-btn"
+        title="查看导入时因解析损坏被跳过的文件清单 (FR-1)"
+        @click="openModal('skip-list')"
+      >
+        ⚠️ {{ skipped.length }} 项被跳过 (点击查看详情)
       </button>
+      <span v-else class="metric-item skip-empty">无跳过项</span>
     </div>
   </footer>
 </template>
@@ -100,5 +107,8 @@ const failedCount = tracks.value.filter((t) => t.status === 'failed').length
 }
 .skip-btn:hover {
   filter: brightness(1.2);
+}
+.skip-empty {
+  color: var(--text-muted);
 }
 </style>
