@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
+import { trackBaseName } from '../../utils/trackText'
 import type { LyricsCandidateItem } from '../../types'
 
 const emit = defineEmits<{
@@ -51,9 +52,14 @@ watch(
 const activeTrack = computed(
   () => scopeTracks.value.find((t) => t.id === activeTrackId.value) || scopeTracks.value[0] || null
 )
-const activeTitle = computed(
-  () => activeTrack.value?.tags.title || activeTrack.value?.filename || '当前曲目'
-)
+const activeTitle = computed(() => {
+  const track = activeTrack.value
+  if (!track) {
+    return '当前曲目'
+  }
+  // 无元数据标题时以去扩展名的文件名兜底（BIZ-024）
+  return track.tags.title || trackBaseName(track)
+})
 const activeArtist = computed(() => activeTrack.value?.tags.artist || '未知艺术家')
 const currentLyrics = computed(() => activeTrack.value?.tags.lyrics || '')
 
@@ -247,13 +253,13 @@ const handleApplyBatch = () => {
             </div>
             <div class="track-list">
               <div
-                v-for="track in scopeTracks"
+                v-for="(track, idx) in scopeTracks"
                 :key="track.id"
                 class="track-row"
                 :class="{ active: track.id === activeTrackId }"
                 @click="switchTrack(track.id)"
               >
-                <span class="track-name">#{{ track.id }} {{ track.tags.title || track.filename }}</span>
+                <span class="track-name">#{{ idx + 1 }} {{ track.tags.title || trackBaseName(track) }}</span>
                 <span
                   class="track-status"
                   :class="{

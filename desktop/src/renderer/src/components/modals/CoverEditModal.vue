@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { fetchCoverUrl } from '../../api/client'
+import { trackBaseName } from '../../utils/trackText'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -161,7 +162,7 @@ const canApply = computed(
         <div class="track-line">
           <span class="track-label">预览曲目</span>
           <span class="track-name">
-            {{ previewTrack?.tags.title || previewTrack?.filename }}
+            {{ previewTrack?.tags.title || (previewTrack ? trackBaseName(previewTrack) : '') }}
           </span>
           <span class="track-meta">{{ previewTrack?.filename }}</span>
         </div>

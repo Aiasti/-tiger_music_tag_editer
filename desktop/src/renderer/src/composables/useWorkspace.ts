@@ -8,12 +8,13 @@ import {
   type WorkspaceView
 } from '../api/client'
 
-// 字段列定义（12 个核心元数据列 + 歌词按钮列 + 行号/状态）；width 可拖拽调整（BIZ-015）
+// 字段列定义（12 个核心元数据列 + 状态圆点列 + 序号列 + 文件名列）；width 可拖拽调整（BIZ-015）
 const initialColumns: ColumnDefinition[] = [
+  { key: 'status', label: '状态', minWidth: 36, width: 44, visible: true, editable: false },
   { key: 'id', label: '#', minWidth: 42, width: 42, visible: true, editable: false },
-  { key: 'status', label: '状态', minWidth: 68, width: 78, visible: true, editable: false },
-  { key: 'trackNo', label: '音轨', minWidth: 55, width: 60, visible: true, editable: true },
+  { key: 'filename', label: '文件名', minWidth: 140, width: 180, visible: true, editable: false },
   { key: 'discNo', label: '碟号', minWidth: 55, width: 60, visible: true, editable: true },
+  { key: 'trackNo', label: '音轨', minWidth: 55, width: 60, visible: true, editable: true },
   { key: 'title', label: '标题', minWidth: 160, width: 200, visible: true, editable: true },
   { key: 'artist', label: '艺术家', minWidth: 120, width: 150, visible: true, editable: true },
   { key: 'album', label: '专辑', minWidth: 140, width: 180, visible: true, editable: true },

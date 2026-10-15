@@ -2,6 +2,7 @@
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { fetchCoverUrl } from '../../api/client'
+import { trackBaseName } from '../../utils/trackText'
 import type { TrackTagData } from '../../types'
 
 const { selectedTrack, pendingCovers } = useWorkspace()
@@ -107,7 +108,7 @@ const displayCover = computed(() => {
       <!-- 标题 -->
       <section>
         <h3 class="section-title">当前曲目详情</h3>
-        <div class="track-title">{{ selectedTrack.tags.title || selectedTrack.filename }}</div>
+        <div class="track-title">{{ selectedTrack.tags.title || trackBaseName(selectedTrack) }}</div>
       </section>
 
       <!-- 封面媒体卡片 (FR-6)：只读展示；编辑入口在工作区次工具栏「编辑封面」（BIZ-020） -->

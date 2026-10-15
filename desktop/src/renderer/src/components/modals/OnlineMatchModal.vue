@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
+import { trackBaseName } from '../../utils/trackText'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -168,10 +169,10 @@ const applyToScope = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="track in scopeTracks" :key="track.id">
-                <td>{{ track.id }}</td>
+              <tr v-for="(track, i) in scopeTracks" :key="track.id">
+                <td>{{ i + 1 }}</td>
                 <td>
-                  {{ track.tags.title || track.filename }}
+                  {{ track.tags.title || trackBaseName(track) }}
                   <span v-if="!track.tags.trackNo" class="badge-old">(缺少音轨号)</span>
                 </td>
                 <td>

@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
+import { trackBaseName } from '../../utils/trackText'
 import type { TrackItem, EditableTagField, ColumnDefinition } from '../../types'
 
 const {
@@ -38,8 +39,32 @@ const inlineEditValue = ref('')
 const visibleColumns = computed(() => columns.value.filter((col) => col.visible))
 const tableWidth = computed(() => visibleColumns.value.reduce((sum, col) => sum + col.width, 0))
 
+// 状态圆点文案（参考原型最左侧列的圆点，BIZ-022）
+const STATUS_TEXT: Record<TrackItem['status'], string> = {
+  saved: '已保存（无未提交修改）',
+  edited: '已编辑（待提交）',
+  matched: '已匹配（待提交）',
+  failed: '读取失败'
+}
+
+/**
+ * 单格染色（BIZ-022，参考原型 `td.cell-edited` / `td.cell-matched`）：
+ * 当前值与首次快照不同的可编辑单元格加浅色底与左侧色条，颜色随曲目状态。
+ */
+const cellStateClass = (track: TrackItem, field: EditableTagField): string => {
+  if (track.status === 'failed') return ''
+  const current = track.tags[field] || ''
+  const initial = track.initialSnapshot[field] || ''
+  if (current === initial) return ''
+  return track.status === 'matched' ? 'cell-matched' : 'cell-edited'
+}
+
+// 拖拽结束后短暂屏蔽行点击：排序本身不改状态，也不应因「落下即选中」产生行染色（BIZ-022）
+const suppressClickUntil = ref(0)
+
 // 点击单元格：普通单选；Ctrl 点选切换；Shift 连选（BIZ-015）
 const handleCellClick = (trackId: number, event: MouseEvent) => {
+  if (Date.now() < suppressClickUntil.value) return
   selectTrack(trackId, event)
 }
 
@@ -117,9 +142,12 @@ const dragOverIndex = ref<number | null>(null)
 
 const handleDragStart = (trackId: number, event: DragEvent) => {
   draggingTrackId.value = trackId
-  if (event.dataTransfer) {
+  // 拖拽手柄仍是行号单元格，但拖动反馈用整行（BIZ-022）
+  const row = (event.currentTarget as HTMLElement | null)?.closest('tr')
+  if (row && event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', String(trackId))
+    event.dataTransfer.setDragImage(row, 24, row.offsetHeight / 2)
   }
 }
 
@@ -138,6 +166,7 @@ const handleDrop = (index: number) => {
 const handleDragEnd = () => {
   draggingTrackId.value = null
   dragOverIndex.value = null
+  suppressClickUntil.value = Date.now() + 200
 }
 
 // 移出工作区（BIZ-015）：仅会话内移除，不改磁盘；有未提交修改时二次确认
@@ -221,61 +250,41 @@ onUnmounted(() => {
           <tr
             v-for="(track, index) in tracks"
             :key="track.id"
+            :draggable="editingCell?.trackId !== track.id"
             :class="{
               selected: selectedTrackIds.includes(track.id),
               failed: track.status === 'failed',
-              edited: track.status === 'edited',
-              matched: track.status === 'matched',
-              'drag-over': dragOverIndex === index
+              'drag-over': dragOverIndex === index,
+              'is-dragging': draggingTrackId === track.id
             }"
             @click="handleCellClick(track.id, $event)"
+            @dragstart="handleDragStart(track.id, $event)"
+            @dragend="handleDragEnd"
             @dragover.prevent="handleDragOver(index)"
             @drop.prevent.stop="handleDrop(index)"
           >
-            <!-- 1. 行号（同时作为拖拽排序手柄，FR-3 / BIZ-016） -->
-            <td
-              class="col-id align-right drag-handle"
-              draggable="true"
-              title="拖拽调整顺序"
-              @dragstart="handleDragStart(track.id, $event)"
-              @dragend="handleDragEnd"
-            >
-              <span class="row-num">{{ String(track.id).padStart(2, '0') }}</span>
-            </td>
-
-            <!-- 2. 状态徽标 -->
+            <!-- 1. 状态圆点（最左列，BIZ-022，参考原型最左侧列的圆点） -->
             <td class="col-status">
-              <span class="status-badge" :class="track.status">
-                <template v-if="track.status === 'saved'">已保存</template>
-                <template v-else-if="track.status === 'edited'">已编辑</template>
-                <template v-else-if="track.status === 'matched'">已匹配</template>
-                <template v-else-if="track.status === 'failed'">失败</template>
-              </span>
+              <span
+                class="status-dot"
+                :class="track.status"
+                :title="STATUS_TEXT[track.status]"
+              ></span>
             </td>
 
-            <!-- 3. 音轨号 -->
-            <td
-              class="col-track editable-cell"
-              @dblclick="handleCellDblClick(track, 'trackNo')"
-            >
-              <input
-                v-if="editingCell?.trackId === track.id && editingCell?.field === 'trackNo'"
-                ref="inlineInputRef"
-                v-model="inlineEditValue"
-                class="inline-input"
-                @blur="handleInputBlur"
-                @keydown.enter="handleInputEnter"
-                @keydown.esc="handleInputEsc"
-                @keydown.tab="handleInputTab"
-              />
-              <span v-else :class="{ faint: !track.tags.trackNo }">
-                {{ track.tags.trackNo || '—' }}
-              </span>
+            <!-- 2. 序号（按当前顺序的位置序号 1..N，拖拽后重排；BIZ-023） -->
+            <td class="col-id align-right" title="拖拽整行调整顺序">
+              <span class="row-num">{{ String(index + 1).padStart(2, '0') }}</span>
+            </td>
+
+            <!-- 3. 文件名（导入文件名，去除扩展名；BIZ-024） -->
+            <td class="col-filename" :title="track.filename">
+              {{ trackBaseName(track) }}
             </td>
 
             <!-- 4. 碟号 -->
             <td
-              class="col-disc editable-cell"
+              :class="['col-disc', 'editable-cell', cellStateClass(track, 'discNo')]"
               @dblclick="handleCellDblClick(track, 'discNo')"
             >
               <input
@@ -293,9 +302,29 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 5. 标题 -->
+            <!-- 5. 音轨号 -->
             <td
-              class="col-title editable-cell"
+              :class="['col-track', 'editable-cell', cellStateClass(track, 'trackNo')]"
+              @dblclick="handleCellDblClick(track, 'trackNo')"
+            >
+              <input
+                v-if="editingCell?.trackId === track.id && editingCell?.field === 'trackNo'"
+                ref="inlineInputRef"
+                v-model="inlineEditValue"
+                class="inline-input"
+                @blur="handleInputBlur"
+                @keydown.enter="handleInputEnter"
+                @keydown.esc="handleInputEsc"
+                @keydown.tab="handleInputTab"
+              />
+              <span v-else :class="{ faint: !track.tags.trackNo }">
+                {{ track.tags.trackNo || '—' }}
+              </span>
+            </td>
+
+            <!-- 6. 标题 -->
+            <td
+              :class="['col-title', 'editable-cell', cellStateClass(track, 'title')]"
               @dblclick="handleCellDblClick(track, 'title')"
             >
               <input
@@ -313,9 +342,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 6. 艺术家 -->
+            <!-- 7. 艺术家 -->
             <td
-              class="col-artist editable-cell"
+              :class="['col-artist', 'editable-cell', cellStateClass(track, 'artist')]"
               @dblclick="handleCellDblClick(track, 'artist')"
             >
               <input
@@ -333,9 +362,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 7. 专辑 -->
+            <!-- 8. 专辑 -->
             <td
-              class="col-album editable-cell"
+              :class="['col-album', 'editable-cell', cellStateClass(track, 'album')]"
               @dblclick="handleCellDblClick(track, 'album')"
             >
               <input
@@ -353,9 +382,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 8. 专辑艺术家 -->
+            <!-- 9. 专辑艺术家 -->
             <td
-              class="col-album-artist editable-cell"
+              :class="['col-album-artist', 'editable-cell', cellStateClass(track, 'albumArtist')]"
               @dblclick="handleCellDblClick(track, 'albumArtist')"
             >
               <input
@@ -373,9 +402,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 9. 年份 -->
+            <!-- 10. 年份 -->
             <td
-              class="col-year editable-cell"
+              :class="['col-year', 'editable-cell', cellStateClass(track, 'year')]"
               @dblclick="handleCellDblClick(track, 'year')"
             >
               <input
@@ -393,9 +422,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 10. 流派 -->
+            <!-- 11. 流派 -->
             <td
-              class="col-genre editable-cell"
+              :class="['col-genre', 'editable-cell', cellStateClass(track, 'genre')]"
               @dblclick="handleCellDblClick(track, 'genre')"
             >
               <input
@@ -413,9 +442,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 11. 作曲 -->
+            <!-- 12. 作曲 -->
             <td
-              class="col-composer editable-cell"
+              :class="['col-composer', 'editable-cell', cellStateClass(track, 'composer')]"
               @dblclick="handleCellDblClick(track, 'composer')"
             >
               <input
@@ -433,9 +462,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 12. 作词 -->
+            <!-- 13. 作词 -->
             <td
-              class="col-lyricist editable-cell"
+              :class="['col-lyricist', 'editable-cell', cellStateClass(track, 'lyricist')]"
               @dblclick="handleCellDblClick(track, 'lyricist')"
             >
               <input
@@ -453,9 +482,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 13. 编曲 -->
+            <!-- 14. 编曲 -->
             <td
-              class="col-arranger editable-cell"
+              :class="['col-arranger', 'editable-cell', cellStateClass(track, 'arranger')]"
               @dblclick="handleCellDblClick(track, 'arranger')"
             >
               <input
@@ -473,9 +502,9 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 14. 注释 -->
+            <!-- 15. 注释 -->
             <td
-              class="col-comment editable-cell"
+              :class="['col-comment', 'editable-cell', cellStateClass(track, 'comment')]"
               @dblclick="handleCellDblClick(track, 'comment')"
             >
               <input
@@ -493,7 +522,7 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 15. 时长 -->
+            <!-- 16. 时长 -->
             <td class="col-duration align-right">
               <span class="mono-num">{{ track.duration }}</span>
             </td>
@@ -605,7 +634,8 @@ th {
 tbody tr {
   height: 30px;
   border-bottom: 1px solid var(--border);
-  cursor: pointer;
+  /* 整行均可作为拖拽排序手柄（BIZ-022） */
+  cursor: grab;
   transition: background-color 0.1s ease;
 }
 
@@ -615,14 +645,6 @@ tbody tr:hover {
 
 tbody tr.selected {
   background-color: var(--accent-soft) !important;
-}
-
-tbody tr.edited {
-  border-left: 3px solid var(--state-edited);
-}
-
-tbody tr.matched {
-  border-left: 3px solid var(--state-matched);
 }
 
 tbody tr.failed {
@@ -639,15 +661,54 @@ td {
   text-overflow: ellipsis;
 }
 
+/* 文件名列：次要信息配色（BIZ-024） */
+td.col-filename {
+  color: var(--text-muted);
+}
+
+/* 状态列：8px 圆点（BIZ-022，参考原型最左侧列） */
+td.col-status {
+  text-align: center;
+}
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--text-muted);
+}
+.status-dot.saved {
+  background: var(--state-ok);
+}
+.status-dot.edited {
+  background: var(--state-edited);
+}
+.status-dot.matched {
+  background: var(--state-matched);
+}
+.status-dot.failed {
+  background: var(--state-failed);
+}
+
+/* 已更改未写回的单格染色（BIZ-022，参考原型 td.cell-edited / td.cell-matched） */
+td.cell-edited {
+  background: var(--state-edited-soft);
+  box-shadow: inset 3px 0 0 var(--state-edited);
+  color: var(--text-bright);
+}
+td.cell-matched {
+  background: var(--state-matched-soft);
+  box-shadow: inset 3px 0 0 var(--state-matched);
+  color: var(--text-bright);
+}
+
 .align-right {
   text-align: right;
 }
 
-/* 拖拽排序（FR-3 / BIZ-016） */
-.drag-handle {
-  cursor: grab;
-}
-.drag-handle:active {
+/* 拖拽排序（FR-3 / BIZ-016 / BIZ-022）：整行可拖，排序不改状态也不染色 */
+tbody tr.is-dragging {
   cursor: grabbing;
 }
 tbody tr.drag-over {
