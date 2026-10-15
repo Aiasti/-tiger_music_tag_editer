@@ -494,6 +494,345 @@
     box-shadow: inset 3px 0 0 var(--state-matched);
   }
 
+  /* BIZ-011: 单元格就地编辑（Inline Input）与可编辑提示 */
+  td.cell-editable {
+    position: relative;
+    user-select: none;
+  }
+  td.cell-editable:hover {
+    outline: 1px dashed var(--accent);
+    outline-offset: -2px;
+  }
+  .cell-inline-input {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    background: var(--surface-3);
+    border: 1.5px solid var(--accent);
+    border-radius: 2px;
+    color: var(--text-bright);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 2px 6px;
+    outline: none;
+    box-shadow: 0 0 6px var(--accent-soft);
+  }
+
+  /* BIZ-012: 内嵌歌词状态感知操作按钮 */
+  .btn-lyrics {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  /* 有歌词内容态：强调高亮显示「编辑歌词」 */
+  .btn-lyrics.has-content {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .btn-lyrics.has-content:hover {
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+  /* 无歌词内容态：低频虚线显示「添加歌词」 */
+  .btn-lyrics.no-content {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    color: var(--text-muted);
+  }
+  .btn-lyrics.no-content:hover {
+    border-color: var(--accent);
+    color: var(--text-bright);
+    background: var(--surface-hover);
+  }
+
+  /* 歌词源配置列表 (BIZ-012 首选项 Tab 3) */
+  .lyric-source-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lyric-source-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: all 0.15s ease;
+  }
+  .lyric-source-card:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+  .lyric-source-card.disabled {
+    opacity: 0.55;
+    background: var(--surface-2);
+  }
+  .lyric-source-handle {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: monospace;
+    font-weight: 700;
+    width: 22px;
+    text-align: center;
+    background: var(--surface-3);
+    border-radius: 3px;
+    padding: 2px 0;
+  }
+  .lyric-source-info {
+    flex: 1;
+  }
+  .lyric-source-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .lyric-source-tag {
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    color: var(--accent);
+  }
+  .lyric-source-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .lyric-priority-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lyric-priority-btn {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 1px 6px;
+    font-size: 9px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .lyric-priority-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-bright);
+    border-color: var(--accent);
+  }
+
+  /* 歌词专用模态编辑框 */
+  .lyrics-editor-textarea {
+    width: 100%;
+    height: 280px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    color: var(--text-bright);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    resize: vertical;
+    outline: none;
+  }
+  .lyrics-editor-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 6px var(--accent-soft);
+  }
+
+  /* =========================================================================
+     BIZ-012: 独立歌词搜索与匹配模态窗 (modal-lyrics-search) 专用样式
+     ========================================================================= */
+  .lyrics-search-sources-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    gap: 12px;
+    font-size: 12px;
+  }
+  .lyrics-source-pill-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .lyrics-source-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    color: var(--text-bright);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .lyrics-source-pill:hover {
+    border-color: var(--accent);
+  }
+  .lyrics-source-pill.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .lyrics-source-pill input {
+    margin: 0;
+    cursor: pointer;
+  }
+  .lyrics-source-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--state-ok);
+  }
+  .lyrics-search-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 12px;
+    height: 480px;
+    min-height: 400px;
+  }
+  .lyrics-panel-left {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    padding-right: 12px;
+  }
+  .lyrics-panel-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .lyrics-track-list {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    overflow: hidden;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .lyrics-track-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .lyrics-track-row:last-child {
+    border-bottom: none;
+  }
+  .lyrics-track-row:hover {
+    background: var(--surface-hover);
+  }
+  .lyrics-track-row.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .lyrics-candidate-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .lyrics-candidate-card:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+  .lyrics-candidate-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .lyrics-candidate-card.skip-card {
+    border-style: dashed;
+    background: var(--surface-2);
+  }
+  .lyrics-candidate-card.skip-card:hover {
+    border-color: var(--text-muted);
+    background: var(--surface-hover);
+  }
+  .lyrics-candidate-card.skip-card.selected {
+    border-color: var(--text-muted);
+    background: var(--surface-hover);
+    box-shadow: 0 0 0 1px var(--text-muted);
+  }
+  .lyrics-diff-viewer {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 8px;
+    overflow: hidden;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  .lyrics-diff-column {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .lyrics-diff-col-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .lyrics-diff-content {
+    flex: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--text-bright);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px;
+  }
+  .lyrics-timestamp {
+    color: var(--state-cyan);
+    font-weight: 500;
+  }
+
   /* 右侧：详情 / 媒体区 (A5) */
   .detail-panel {
     width: 320px;
@@ -1052,8 +1391,11 @@
         <button class="seg-btn active" id="btn-gran-album" onclick="setGranularity('album')">按专辑</button>
         <button class="seg-btn" id="btn-gran-track" onclick="setGranularity('track')">按单曲</button>
       </div>
-      <button class="btn" title="通过 MusicBrainz/AcoustID 获取元数据候选 (FR-5)" onclick="openModal('modal-online-match')">
+      <button class="btn" title="通过 MusicBrainz/AcoustID 获取基础元数据候选 (FR-5)" onclick="openModal('modal-online-match')">
         🌐 在线匹配
+      </button>
+      <button class="btn" title="批量在线多源检索与匹配内嵌歌词 (FR-6, BIZ-012)" onclick="openLyricsSearchModal()">
+        🎵 歌词搜索
       </button>
 
       <span class="sep"></span>
@@ -1119,88 +1461,101 @@
               <th class="col-extra" data-col="lyricist" style="min-width:90px">作词</th>
               <th class="col-extra" data-col="arranger" style="min-width:90px">编曲</th>
               <th style="min-width:110px">注释</th>
+              <th class="col-lyrics" style="min-width:88px; text-align:center;">内嵌歌词</th>
             </tr>
           </thead>
           <tbody>
             <!-- 碟 1 分组 -->
             <tr class="disc-group-row">
-              <td colspan="14">💿 碟 1 · Tiger Live (2026)</td>
+              <td colspan="15">💿 碟 1 · Tiger Live (2026)</td>
             </tr>
-            <!-- 行 1：已保存正常行 -->
-            <tr class="track-row" onclick="selectRow(this, 'Intro', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'ok')">
+            <!-- 行 1：已保存正常行 (双击可就地编辑) -->
+            <tr class="track-row" data-row-id="1" onclick="selectRow(this, 'Intro', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'ok')">
               <td class="col-status"><span class="status-badge ok" title="已保存（无差异）"></span></td>
               <td class="col-num">1</td>
-              <td>Intro</td>
-              <td>Tiger Band</td>
-              <td>Tiger Live</td>
-              <td>Tiger Band</td>
-              <td class="col-num">1</td>
-              <td class="col-num">1</td>
-              <td class="col-num">2026</td>
-              <td>Rock</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="col-extra cell-empty">—</td>
-              <td>Live 开场曲</td>
+              <td class="cell-editable" data-col="title" ondblclick="startInlineEdit(this)">Intro</td>
+              <td class="cell-editable" data-col="artist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="cell-editable" data-col="album" ondblclick="startInlineEdit(this)">Tiger Live</td>
+              <td class="cell-editable" data-col="albumArtist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="col-num cell-editable" data-col="track" ondblclick="startInlineEdit(this)">1</td>
+              <td class="col-num cell-editable" data-col="disc" ondblclick="startInlineEdit(this)">1</td>
+              <td class="col-num cell-editable" data-col="year" ondblclick="startInlineEdit(this)">2026</td>
+              <td class="cell-editable" data-col="genre" ondblclick="startInlineEdit(this)">Rock</td>
+              <td class="col-extra cell-empty cell-editable" data-col="composer" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-extra cell-empty cell-editable" data-col="lyricist" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-extra cell-empty cell-editable" data-col="arranger" ondblclick="startInlineEdit(this)">—</td>
+              <td class="cell-editable" data-col="comment" ondblclick="startInlineEdit(this)">Live 开场曲</td>
+              <td class="col-lyrics" style="text-align:center;">
+                <button class="btn-lyrics no-content" id="btn-lyric-row-1" onclick="openLyricsModal(1, event)">+ 添加歌词</button>
+              </td>
             </tr>
             <!-- 行 2：已编辑待提交选中行 (高亮编辑态单元格) -->
-            <tr class="track-row selected" onclick="selectRow(this, 'Main Theme', 'Tiger Band', 'Tiger Live', '2026', 'Rock (已清除)', 'edited')">
+            <tr class="track-row selected" data-row-id="2" onclick="selectRow(this, 'Main Theme', 'Tiger Band', 'Tiger Live', '2026', 'Rock (已清除)', 'edited')">
               <td class="col-status"><span class="status-badge edited" title="已编辑（待提交）"></span></td>
               <td class="col-num">2</td>
-              <td>Main Theme</td>
-              <td>Tiger Band</td>
-              <td>Tiger Live</td>
-              <td>Tiger Band</td>
-              <td class="col-num cell-edited" title="编辑值: 2 (原值: 1)">2</td>
-              <td class="col-num">1</td>
-              <td class="col-num">2026</td>
-              <td class="cell-edited" title="流派已显式清除"><span style="color:var(--state-edited); font-style:italic;">已清除</span></td>
-              <td class="col-extra">Tiger Composer</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="cell-empty">—</td>
+              <td class="cell-editable" data-col="title" ondblclick="startInlineEdit(this)">Main Theme</td>
+              <td class="cell-editable" data-col="artist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="cell-editable" data-col="album" ondblclick="startInlineEdit(this)">Tiger Live</td>
+              <td class="cell-editable" data-col="albumArtist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="col-num cell-edited cell-editable" data-col="track" title="编辑值: 2 (原值: 1)" ondblclick="startInlineEdit(this)">2</td>
+              <td class="col-num cell-editable" data-col="disc" ondblclick="startInlineEdit(this)">1</td>
+              <td class="col-num cell-editable" data-col="year" ondblclick="startInlineEdit(this)">2026</td>
+              <td class="cell-edited cell-editable" data-col="genre" title="流派已显式清除" ondblclick="startInlineEdit(this)"><span style="color:var(--state-edited); font-style:italic;">已清除</span></td>
+              <td class="col-extra cell-editable" data-col="composer" ondblclick="startInlineEdit(this)">Tiger Composer</td>
+              <td class="col-extra cell-empty cell-editable" data-col="lyricist" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-extra cell-empty cell-editable" data-col="arranger" ondblclick="startInlineEdit(this)">—</td>
+              <td class="cell-empty cell-editable" data-col="comment" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-lyrics" style="text-align:center;">
+                <button class="btn-lyrics has-content" id="btn-lyric-row-2" onclick="openLyricsModal(2, event)">📝 编辑歌词</button>
+              </td>
             </tr>
             <!-- 行 3：已保存正常行 -->
-            <tr class="track-row" onclick="selectRow(this, 'Interlude', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'ok')">
+            <tr class="track-row" data-row-id="3" onclick="selectRow(this, 'Interlude', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'ok')">
               <td class="col-status"><span class="status-badge ok" title="已保存"></span></td>
               <td class="col-num">3</td>
-              <td>Interlude</td>
-              <td>Tiger Band</td>
-              <td>Tiger Live</td>
-              <td>Tiger Band</td>
-              <td class="col-num">3</td>
-              <td class="col-num">1</td>
-              <td class="col-num">2026</td>
-              <td>Rock</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="cell-empty">—</td>
+              <td class="cell-editable" data-col="title" ondblclick="startInlineEdit(this)">Interlude</td>
+              <td class="cell-editable" data-col="artist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="cell-editable" data-col="album" ondblclick="startInlineEdit(this)">Tiger Live</td>
+              <td class="cell-editable" data-col="albumArtist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="col-num cell-editable" data-col="track" ondblclick="startInlineEdit(this)">3</td>
+              <td class="col-num cell-editable" data-col="disc" ondblclick="startInlineEdit(this)">1</td>
+              <td class="col-num cell-editable" data-col="year" ondblclick="startInlineEdit(this)">2026</td>
+              <td class="cell-editable" data-col="genre" ondblclick="startInlineEdit(this)">Rock</td>
+              <td class="col-extra cell-empty cell-editable" data-col="composer" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-extra cell-empty cell-editable" data-col="lyricist" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-extra cell-empty cell-editable" data-col="arranger" ondblclick="startInlineEdit(this)">—</td>
+              <td class="cell-empty cell-editable" data-col="comment" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-lyrics" style="text-align:center;">
+                <button class="btn-lyrics no-content" id="btn-lyric-row-3" onclick="openLyricsModal(3, event)">+ 添加歌词</button>
+              </td>
             </tr>
 
             <!-- 碟 2 分组 -->
             <tr class="disc-group-row">
-              <td colspan="14">💿 碟 2 · Tiger Live (Encore)</td>
+              <td colspan="15">💿 碟 2 · Tiger Live (Encore)</td>
             </tr>
             <!-- 行 4：已在线匹配候选 -->
-            <tr class="track-row" onclick="selectRow(this, 'Encore', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'matched')">
+            <tr class="track-row" data-row-id="4" onclick="selectRow(this, 'Encore', 'Tiger Band', 'Tiger Live', '2026', 'Rock', 'matched')">
               <td class="col-status"><span class="status-badge matched" title="已在线匹配候选"></span></td>
               <td class="col-num">1</td>
-              <td>Encore</td>
-              <td>Tiger Band</td>
-              <td>Tiger Live</td>
-              <td>Tiger Band</td>
-              <td class="col-num cell-matched">1</td>
-              <td class="col-num">2</td>
-              <td class="col-num">2026</td>
-              <td>Rock</td>
-              <td class="col-extra">Tiger Composer</td>
-              <td class="col-extra cell-empty">—</td>
-              <td class="col-extra cell-empty">—</td>
-              <td><span style="color:var(--state-matched)">MusicBrainz 候选</span></td>
+              <td class="cell-editable" data-col="title" ondblclick="startInlineEdit(this)">Encore</td>
+              <td class="cell-editable" data-col="artist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="cell-editable" data-col="album" ondblclick="startInlineEdit(this)">Tiger Live</td>
+              <td class="cell-editable" data-col="albumArtist" ondblclick="startInlineEdit(this)">Tiger Band</td>
+              <td class="col-num cell-matched cell-editable" data-col="track" ondblclick="startInlineEdit(this)">1</td>
+              <td class="col-num cell-editable" data-col="disc" ondblclick="startInlineEdit(this)">2</td>
+              <td class="col-num cell-editable" data-col="year" ondblclick="startInlineEdit(this)">2026</td>
+              <td class="cell-editable" data-col="genre" ondblclick="startInlineEdit(this)">Rock</td>
+              <td class="col-extra cell-editable" data-col="composer" ondblclick="startInlineEdit(this)">Tiger Composer</td>
+              <td class="col-extra cell-empty cell-editable" data-col="lyricist" ondblclick="startInlineEdit(this)">—</td>
+              <td class="col-extra cell-empty cell-editable" data-col="arranger" ondblclick="startInlineEdit(this)">—</td>
+              <td class="cell-editable" data-col="comment" ondblclick="startInlineEdit(this)"><span style="color:var(--state-matched)">MusicBrainz 候选</span></td>
+              <td class="col-lyrics" style="text-align:center;">
+                <button class="btn-lyrics has-content" id="btn-lyric-row-4" onclick="openLyricsModal(4, event)">📝 编辑歌词</button>
+              </td>
             </tr>
-            <!-- 行 5：标签读取失败/错误状态行 -->
-            <tr class="track-row failed" onclick="selectRow(this, 'Outro (损坏)', '—', '—', '—', '—', 'failed')">
+            <!-- 行 5：标签读取失败/错误状态行 (只读禁双击编辑) -->
+            <tr class="track-row failed" data-row-id="5" onclick="selectRow(this, 'Outro (损坏)', '—', '—', '—', '—', 'failed')">
               <td class="col-status"><span class="status-badge failed" title="损坏或读取失败"></span></td>
               <td class="col-num">2</td>
               <td style="color:var(--state-failed); font-weight:500;">Outro.wav</td>
@@ -1215,6 +1570,7 @@
               <td class="col-extra cell-empty">—</td>
               <td class="col-extra cell-empty">—</td>
               <td style="color:var(--state-failed)">RIFF 头部损坏 / 跳过项</td>
+              <td class="col-lyrics cell-empty" style="text-align:center;">—</td>
             </tr>
           </tbody>
         </table>
@@ -1249,6 +1605,11 @@
             <dt>艺术家</dt><dd id="detail-artist">Tiger Band</dd>
             <dt>专辑</dt><dd id="detail-album">Tiger Live</dd>
             <dt>音轨 / 碟号</dt><dd id="detail-track">2 / 碟 1</dd>
+            <dt>内嵌歌词</dt>
+            <dd id="detail-lyrics-wrap" style="display:flex; align-items:center; gap:6px;">
+              <span id="detail-lyrics-status" style="font-size:11px; color:var(--accent);">已有 LRC (42行)</span>
+              <button class="btn-lyrics has-content" id="detail-lyrics-btn" onclick="openLyricsModalFromDetail(event)">📝 编辑歌词</button>
+            </dd>
             <dt>状态</dt>
             <dd>
               <span id="detail-status" style="color:var(--state-edited); font-weight:600;">已编辑（待提交）</span>
@@ -1321,12 +1682,14 @@
   <div class="modal-nav-bar" style="margin-top: 18px;">
     <strong style="color:var(--text-bright); font-size:12px; margin-right:6px;">🚀 交互弹窗快捷评审：</strong>
     <button class="modal-nav-btn" onclick="openModal('modal-online-match')">🌐 在线元数据匹配对比 (FR-5)</button>
+    <button class="modal-nav-btn" onclick="openLyricsSearchModal()">🎵 歌词独立在线搜索 (BIZ-012)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-lyrics-edit')">📝 内嵌歌词独立编辑 (BIZ-012)</button>
     <button class="modal-nav-btn" onclick="openModal('modal-write-confirm')">💾 确认写回与差异预览 (FR-8)</button>
     <button class="modal-nav-btn" onclick="openModal('modal-rename-preview')">🏷️ 重命名与归档规则预览 (FR-7)</button>
     <button class="modal-nav-btn" onclick="openModal('modal-batch-edit')">📝 批量修改标签字段 (FR-4)</button>
     <button class="modal-nav-btn" onclick="openModal('modal-renumber-confirm')">🔢 按范围编号与异常提示 (BIZ-003)</button>
     <button class="modal-nav-btn" onclick="openModal('modal-skip-list')">⚠️ 导入跳过项清单详情 (FR-1)</button>
-    <button class="modal-nav-btn" onclick="openModal('modal-settings')">⚙️ 系统首选项与播放器配置 (FR-9/C2)</button>
+    <button class="modal-nav-btn" onclick="openModal('modal-settings')">⚙️ 系统首选项与歌词源配置 (FR-9/C2)</button>
   </div>
 
   <!-- ======================================================================
@@ -1455,13 +1818,13 @@
 
       <!-- 候选结果列表 -->
       <div>
-        <div class="form-label" style="margin-bottom:6px;">检索到 3 个候选匹配源（点击卡片查看与工作区差异）：</div>
+        <div class="form-label" style="margin-bottom:6px;">检索到 3 个基础元数据匹配源（点击卡片查看与工作区差异）：</div>
         <div class="candidate-card-list">
           <div class="candidate-card selected" onclick="selectCandidate(this, 1)">
             <div class="candidate-score">98%</div>
             <div class="candidate-info">
               <div class="candidate-title">Tiger Live (Official Japanese Release) · MusicBrainz</div>
-              <div class="candidate-sub">发布日期: 2026-05-18 · 地区: 日本 (JP) · 格式: CD · 包含 5 首曲目 (与工作区完全匹配)</div>
+              <div class="candidate-sub">发布日期: 2026-05-18 · 地区: 日本 (JP) · 包含 5 首曲目 · 媒体: CD / 44.1kHz FLAC</div>
             </div>
             <span class="status-badge ok" title="高置信度推荐"></span>
           </div>
@@ -1469,7 +1832,7 @@
             <div class="candidate-score" style="color:var(--state-edited)">85%</div>
             <div class="candidate-info">
               <div class="candidate-title">Tiger Live [Deluxe 2CD Edition] · MusicBrainz</div>
-              <div class="candidate-sub">发布日期: 2026-06-01 · 地区: 美国 (US) · 包含 8 首曲目 (含额外 3 首 Bonus Tracks)</div>
+              <div class="candidate-sub">发布日期: 2026-06-01 · 地区: 美国 (US) · 包含 8 首曲目 · 双碟装 (Disc 1/2)</div>
             </div>
             <span class="status-badge edited"></span>
           </div>
@@ -1498,32 +1861,32 @@
           <tbody>
             <tr>
               <td>1</td>
-              <td>Intro <span class="diff-badge-old">(Tiger Band)</span></td>
-              <td><span class="diff-badge-matched">Intro (Live 2026)</span> <span style="color:var(--text-bright)">Tiger Band</span></td>
-              <td><span style="color:var(--state-matched)">字段微调</span></td>
+              <td>Intro <span class="diff-badge-old">(缺少音轨号)</span></td>
+              <td><span class="diff-badge-matched">Intro (Live 2026)</span> · 音轨 1/5 · 碟 1/2</td>
+              <td><span style="color:var(--state-matched)">字段补齐</span></td>
             </tr>
             <tr>
               <td>2</td>
-              <td>Main Theme</td>
-              <td><span class="diff-badge-matched">Main Theme (Live Official)</span></td>
+              <td>Main Theme · 艺术家: Tiger Band</td>
+              <td><span class="diff-badge-matched">Main Theme (Live Official)</span> · 2026 · Rock</td>
               <td><span style="color:var(--state-matched)">字段更新</span></td>
             </tr>
             <tr>
               <td>3</td>
-              <td>Interlude</td>
-              <td>Interlude</td>
-              <td><span style="color:var(--state-ok)">完全一致</span></td>
+              <td>Interlude · 流派: (空)</td>
+              <td>Interlude · 流派: <span class="diff-badge-matched">Instrumental Rock</span></td>
+              <td><span style="color:var(--state-matched)">流派补齐</span></td>
             </tr>
             <tr>
               <td>4</td>
-              <td>Encore</td>
-              <td><span class="diff-badge-matched">Encore (Live Special)</span></td>
-              <td><span style="color:var(--state-matched)">字段更新</span></td>
+              <td>Encore · 碟号: 2</td>
+              <td><span class="diff-badge-matched">Encore (Live Special)</span> · 音轨 1/1 · 碟 2/2</td>
+              <td><span style="color:var(--state-ok)">完全匹配</span></td>
             </tr>
             <tr>
               <td>5</td>
               <td><span style="color:var(--state-failed)">Outro.wav (损坏项)</span></td>
-              <td><span class="diff-badge-matched">Outro (Speech & Band End)</span></td>
+              <td><span class="diff-badge-matched">Outro (Speech & Band End)</span> · 音轨 5/5</td>
               <td><span style="color:var(--state-edited)">可修复补齐</span></td>
             </tr>
           </tbody>
@@ -1531,13 +1894,237 @@
       </div>
 
       <div class="modal-alert info">
-        ℹ️ 提示：点击“应用”后，标签将以【已匹配】状态存入内存编辑态，不会直接写入磁盘。只有在主界面点击【确认写回】后才会真正落盘。
+        ℹ️ 提示：基础元数据（标题、艺术家、专辑、曲目号等）点击“应用”后将以【已匹配】状态进入内存编辑态。内嵌歌词请使用独立的「🎵 歌词搜索」按钮进行专属检索与匹配。
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">取消</button>
       <button class="btn" onclick="applyCandidate(false)">仅应用到当前选中行</button>
       <button class="btn primary" onclick="applyCandidate(true)">批量应用到所有 5 首曲目</button>
+    </div>
+  </div>
+
+  <!-- 1.1 在线歌词批量搜索与匹配专属弹窗 (FR-6, BIZ-012) -->
+  <div class="modal-window" id="modal-lyrics-search" style="max-width: 980px;">
+    <div class="modal-header">
+      <span class="modal-title">🎵 批量在线歌词搜索与匹配 (FR-6 / BIZ-012)</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" style="gap:10px;">
+      <!-- 歌词源选择与优先级指示条 -->
+      <div class="lyrics-search-sources-bar">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <strong style="color:var(--text-bright);">歌词检索来源：</strong>
+          <div class="lyrics-source-pill-group">
+            <label class="lyrics-source-pill active" title="启用网易云音乐源 (优先级 1)">
+              <input type="checkbox" checked onchange="toggleSearchSource(this, 'netease')" />
+              <span class="lyrics-source-dot"></span>
+              <span>网易云音乐 (Netease)</span>
+              <span style="color:var(--text-faint); font-size:10px;">28ms</span>
+            </label>
+            <label class="lyrics-source-pill active" title="启用 QQ 音乐源 (优先级 2)">
+              <input type="checkbox" checked onchange="toggleSearchSource(this, 'qqmusic')" />
+              <span class="lyrics-source-dot"></span>
+              <span>QQ 音乐 (QQMusic)</span>
+              <span style="color:var(--text-faint); font-size:10px;">42ms</span>
+            </label>
+            <label class="lyrics-source-pill active" title="启用 Apple Music 源 (优先级 3)">
+              <input type="checkbox" checked onchange="toggleSearchSource(this, 'apple')" />
+              <span class="lyrics-source-dot"></span>
+              <span>Apple Music</span>
+              <span style="color:var(--text-faint); font-size:10px;">65ms</span>
+            </label>
+            <label class="lyrics-source-pill" title="启用 Last.fm 纯文本源 (优先级 4)">
+              <input type="checkbox" onchange="toggleSearchSource(this, 'lastfm')" />
+              <span class="lyrics-source-dot" style="background:var(--text-muted);"></span>
+              <span>Last.fm (纯文本)</span>
+              <span style="color:var(--text-faint); font-size:10px;">110ms</span>
+            </label>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="btn ghost" style="padding:2px 8px; font-size:11px;" onclick="openModal('modal-settings'); switchSettingsTab(3);" title="前往系统设置面板调整源检索顺序与首选项">⚙️ 调整优先级与超时</button>
+        </div>
+      </div>
+
+      <!-- 搜索控制输入栏 -->
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input type="text" class="form-input" style="flex:1" id="lyrics-search-input" value="Tiger Band - Main Theme" placeholder="输入歌曲名、艺术家或专辑搜索歌词…" />
+        <button class="btn primary" style="font-size:12px;" onclick="triggerLyricsSingleSearch()">🔍 检索当前曲目</button>
+        <button class="btn" style="font-size:12px;" onclick="triggerLyricsBatchSearch()">⚡ 批量检索全部 5 首</button>
+      </div>
+
+      <!-- 核心左右分栏工作区 -->
+      <div class="lyrics-search-grid">
+        <!-- 左侧：曲目队列与多源候选卡片 -->
+        <div class="lyrics-panel-left">
+          <div>
+            <div class="form-label" style="margin-bottom:4px; display:flex; justify-content:space-between;">
+              <span>待匹配曲目状态 (点击切换曲目)：</span>
+              <span style="color:var(--accent); font-weight:600;" id="lyrics-search-summary">共 5 首 · 4 首已获候选</span>
+            </div>
+            <div class="lyrics-track-list">
+              <div class="lyrics-track-row" id="lyrics-track-row-1" onclick="switchLyricsSearchTrack(1, this)">
+                <span>#1 Intro</span>
+                <span class="status-badge-text" style="color:var(--state-matched);">✓ 命中 2 个源 (95%)</span>
+              </div>
+              <div class="lyrics-track-row active" id="lyrics-track-row-2" onclick="switchLyricsSearchTrack(2, this)">
+                <span>#2 Main Theme</span>
+                <span class="status-badge-text" style="color:var(--state-ok);">✓ 命中 3 个源 (98%)</span>
+              </div>
+              <div class="lyrics-track-row" id="lyrics-track-row-3" onclick="switchLyricsSearchTrack(3, this)">
+                <span>#3 Interlude</span>
+                <span class="status-badge-text" style="color:var(--text-muted);">纯音乐 (跳过)</span>
+              </div>
+              <div class="lyrics-track-row" id="lyrics-track-row-4" onclick="switchLyricsSearchTrack(4, this)">
+                <span>#4 Encore</span>
+                <span class="status-badge-text" style="color:var(--state-matched);">✓ 命中 3 个源 (96%)</span>
+              </div>
+              <div class="lyrics-track-row" id="lyrics-track-row-5" onclick="switchLyricsSearchTrack(5, this)">
+                <span>#5 Outro.wav</span>
+                <span class="status-badge-text" style="color:var(--state-failed);">✕ 搜索无结果</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="form-label" style="margin-bottom:4px; display:flex; justify-content:space-between;">
+              <span>当前曲目多源歌词候选卡片：</span>
+              <span style="font-size:11px; color:var(--text-muted);">按来源优先级排序</span>
+            </div>
+            <div class="candidate-card-list" id="lyrics-candidate-container">
+              <!-- 候选 1 -->
+              <div class="lyrics-candidate-card selected" id="card-src-netease" onclick="selectLyricsCandidate(this, 'netease')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:600; color:var(--text-bright); font-size:12px;">🔴 网易云音乐 (Netease)</span>
+                  <span style="color:var(--state-ok); font-weight:700; font-size:12px;">98% 匹配</span>
+                </div>
+                <div style="font-size:11.5px; color:var(--text);">Tiger Band - Main Theme (Live 2026)</div>
+                <div style="display:flex; gap:6px; font-size:10.5px; margin-top:2px;">
+                  <span class="lyric-source-tag" style="color:var(--state-ok); border-color:var(--state-ok);">⏱️ 精确 LRC 时间轴</span>
+                  <span class="lyric-source-tag">42 行</span>
+                  <span class="lyric-source-tag" style="color:var(--accent);">双语歌词</span>
+                </div>
+              </div>
+              <!-- 候选 2 -->
+              <div class="lyrics-candidate-card" id="card-src-qqmusic" onclick="selectLyricsCandidate(this, 'qqmusic')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:600; color:var(--text-bright); font-size:12px;">🟢 QQ 音乐 (QQMusic)</span>
+                  <span style="color:var(--state-ok); font-weight:700; font-size:12px;">92% 匹配</span>
+                </div>
+                <div style="font-size:11.5px; color:var(--text);">Tiger Band - Main Theme</div>
+                <div style="display:flex; gap:6px; font-size:10.5px; margin-top:2px;">
+                  <span class="lyric-source-tag" style="color:var(--state-ok); border-color:var(--state-ok);">⏱️ LRC 时间轴</span>
+                  <span class="lyric-source-tag">40 行</span>
+                  <span class="lyric-source-tag">单语原版</span>
+                </div>
+              </div>
+              <!-- 候选 3 -->
+              <div class="lyrics-candidate-card" id="card-src-apple" onclick="selectLyricsCandidate(this, 'apple')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:600; color:var(--text-bright); font-size:12px;">🍎 Apple Music</span>
+                  <span style="color:var(--state-edited); font-weight:700; font-size:12px;">88% 匹配</span>
+                </div>
+                <div style="font-size:11.5px; color:var(--text);">Main Theme - Tiger Live Album</div>
+                <div style="display:flex; gap:6px; font-size:10.5px; margin-top:2px;">
+                  <span class="lyric-source-tag" style="color:var(--state-ok); border-color:var(--state-ok);">⏱️ 逐行滚动 LRC</span>
+                  <span class="lyric-source-tag">39 行</span>
+                </div>
+              </div>
+              <!-- 候选 4：不应用（跳过） -->
+              <div class="lyrics-candidate-card skip-card" id="card-src-skip" onclick="selectLyricsCandidate(this, 'skip')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:600; color:var(--text-bright); font-size:12px;">🚫 不应用（跳过此曲目）</span>
+                  <span style="color:var(--text-muted); font-size:11px; font-weight:600;">跳过装配</span>
+                </div>
+                <div style="font-size:11.5px; color:var(--text-muted);">保持本地现有歌词不变，不将在线候选歌词装配至本曲目</div>
+                <div style="display:flex; gap:6px; font-size:10.5px; margin-top:2px;">
+                  <span class="lyric-source-tag" style="color:var(--text-muted); border-color:var(--border);">保留原状</span>
+                  <span class="lyric-source-tag">不修改歌词</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：歌词预览与新旧差异对照面板 -->
+        <div class="lyrics-panel-right">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="form-label" style="color:var(--text-bright); font-weight:600;">歌词对照与时间轴校验：</span>
+              <span id="lyrics-diff-badge" style="font-size:11px; color:var(--state-matched); background:var(--state-matched-soft); padding:1px 6px; border-radius:3px;">
+                网易云音乐 (98%) · 双语 LRC
+              </span>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn ghost active" style="padding:2px 8px; font-size:11px;" onclick="toggleDiffMode('split')" id="btn-diff-split">左右对比</button>
+              <button class="btn ghost" style="padding:2px 8px; font-size:11px;" onclick="toggleDiffMode('candidate-only')" id="btn-diff-candidate">仅看候选</button>
+            </div>
+          </div>
+
+          <div class="lyrics-diff-viewer" id="lyrics-diff-viewer-el">
+            <!-- 左侧：本地现有歌词 -->
+            <div class="lyrics-diff-column" id="lyrics-col-local">
+              <div class="lyrics-diff-col-header">
+                <span>📁 当前曲目本地歌词</span>
+                <span style="color:var(--text-muted);" id="lyrics-local-lines">42 行</span>
+              </div>
+              <div class="lyrics-diff-content" id="lyrics-local-content">[00:00.00]Tiger Band - Main Theme
+[00:04.12]Words and Music by Tiger Live
+[00:08.50]Recorded live at Tokyo Arena 2026
+[00:15.20]The spotlight turns on the stage tonight
+[00:19.80]Feel the heartbeat, feel the burning light
+[00:24.40]Electric roar, echoing through the hall
+[00:29.10]Together we stand, we will never fall
+[00:34.00]Guitars screaming high into the sky
+[00:39.50]No looking back, we're ready to fly
+[00:45.30]Solo riffs ignite the passionate crowd
+[00:52.10]Scream it out, sing it loud
+[00:59.80]Tiger Live forever in our soul</div>
+            </div>
+
+            <!-- 右侧：候选源歌词 -->
+            <div class="lyrics-diff-column" id="lyrics-col-candidate">
+              <div class="lyrics-diff-col-header">
+                <span style="color:var(--accent);">✨ 候选网易云双语 LRC</span>
+                <span style="color:var(--state-ok);" id="lyrics-candidate-lines">42 行 · 已对齐</span>
+              </div>
+              <div class="lyrics-diff-content" id="lyrics-candidate-content">[00:00.00]Tiger Band - Main Theme (Live 2026)
+[00:04.12]词曲：Tiger Live Official
+[00:08.50]Recorded live at Tokyo Arena 2026
+[00:15.20]The spotlight turns on the stage tonight
+[00:15.20]今夜聚光灯重新照亮舞台
+[00:19.80]Feel the heartbeat, feel the burning light
+[00:19.80]感受脉搏跳动与炽热的光芒
+[00:24.40]Electric roar, echoing through the hall
+[00:24.40]电声轰鸣回荡在整座殿堂
+[00:29.10]Together we stand, we will never fall
+[00:29.10]我们并肩而立，永不倒下
+[00:34.00]Guitars screaming high into the sky
+[00:34.00]吉他啸叫直冲云霄
+[00:39.50]No looking back, we're ready to fly
+[00:45.30]Solo riffs ignite the passionate crowd
+[00:52.10]Scream it out, sing it loud
+[00:59.80]Tiger Live forever in our soul</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 隔离与安全提示 -->
+      <div class="modal-alert info" style="margin-top:2px; font-size:11.5px; padding:6px 12px;">
+        🛡️ <strong>持久化隔离铁律 (FR-4 / FR-6 / BIZ-012)</strong>：应用在线候选歌词仅会将数据暂存至前端内存编辑态并标记为【已编辑】，绝不直接写入磁盘。必须在主工具栏点击<strong>【💾 确认写回】</strong>后才会最终持久化落盘。
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex; justify-content:space-between;">
+      <div style="font-size:11.5px; color:var(--text-muted);">
+        当前选定候选：<strong style="color:var(--accent);" id="lyrics-footer-selected-source">网易云音乐</strong> (可点击左侧卡片更换候选)
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn" onclick="applyLyricsToCurrentTrack()">应用至当前曲目 (待写回)</button>
+        <button class="btn primary" onclick="applyBatchLyricsAll()">✨ 一键批量应用全部高匹配歌词 (≥85%)</button>
+      </div>
     </div>
   </div>
 
@@ -1701,6 +2288,9 @@
           <option value="composer">作曲 (Composer)</option>
           <option value="comment">注释 (Comment)</option>
         </select>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+          🛡️ <strong>长文本与只读字段安全隔离 (BIZ-012)</strong>：内嵌歌词（USLT/LYRICS）与行号、状态标识严禁批量盲目覆盖。如需修改歌词请在曲目表格或详情面板中针对单曲独立操作。
+        </div>
       </div>
 
       <div class="form-group">
@@ -1806,8 +2396,8 @@
     </div>
   </div>
 
-  <!-- 7. 系统首选项与播放器配置弹窗 (FR-9, C2, BIZ-009) -->
-  <div class="modal-window" id="modal-settings" style="max-width: 660px;">
+  <!-- 7. 系统首选项与配置弹窗 (FR-9, C2, BIZ-009, BIZ-012) -->
+  <div class="modal-window" id="modal-settings" style="max-width: 680px;">
     <div class="modal-header">
       <span class="modal-title">⚙️ 系统首选项与配置</span>
       <button class="modal-close" onclick="closeModal()">✕</button>
@@ -1820,6 +2410,9 @@
         </button>
         <button class="btn ghost" id="tab-btn-pref-2" onclick="switchSettingsTab(2)" style="border-radius:0;">
           🌐 在线服务与限流 (FR-5 / BIZ-009)
+        </button>
+        <button class="btn ghost" id="tab-btn-pref-3" onclick="switchSettingsTab(3)" style="border-radius:0;">
+          🎵 可选歌词源配置 (FR-9 / BIZ-012)
         </button>
       </div>
 
@@ -1865,10 +2458,157 @@
           • 若遭遇服务端 429 或 503 限流响应，应用将自动按 Retry-After 标头指数退避重试。
         </div>
       </div>
+
+      <!-- Tab 3 内容：可选歌词源配置 (FR-9 / BIZ-012) -->
+      <div id="tab-pref-pane-3" style="display:none; flex-direction:column; gap:12px;">
+        <div style="font-size:12px; color:var(--text-muted);">
+          拖拽或使用上下按钮调整批量在线检索时的优先级。排在前面的歌词源将优先检索，匹配成功后停止：
+        </div>
+
+        <!-- 歌词源卡片列表 -->
+        <div style="display:flex; flex-direction:column; gap:8px;" id="lyric-sources-container">
+          <!-- 歌词源 1: 网易云 -->
+          <div class="lyric-source-card" data-source-id="netease">
+            <input type="checkbox" checked title="启用/停用该歌词源" onchange="toggleLyricSource(this)" />
+            <div class="lyric-source-meta">
+              <div class="lyric-source-title">
+                <span>网易云音乐 (Netease Cloud Music)</span>
+                <span class="lyric-source-tag">推荐 / 双语翻译 / LRC 同步</span>
+              </div>
+              <div class="lyric-source-sub">华语、流行、动漫及独立音乐歌词覆盖率最高，支持时间轴精准同步与中文翻译。</div>
+            </div>
+            <div class="lyric-priority-actions">
+              <button class="lyric-priority-btn" title="上移优先级" onclick="moveLyricSource(this, -1)">▲</button>
+              <button class="lyric-priority-btn" title="下移优先级" onclick="moveLyricSource(this, 1)">▼</button>
+            </div>
+          </div>
+
+          <!-- 歌词源 2: QQ 音乐 -->
+          <div class="lyric-source-card" data-source-id="qqmusic">
+            <input type="checkbox" checked title="启用/停用该歌词源" onchange="toggleLyricSource(this)" />
+            <div class="lyric-source-meta">
+              <div class="lyric-source-title">
+                <span>QQ 音乐 (QQ Music)</span>
+                <span class="lyric-source-tag">高时效 / 官方曲库</span>
+              </div>
+              <div class="lyric-source-sub">主流新歌首发时效高，支持高精度 QRC / LRC 时间轴转换。</div>
+            </div>
+            <div class="lyric-priority-actions">
+              <button class="lyric-priority-btn" title="上移优先级" onclick="moveLyricSource(this, -1)">▲</button>
+              <button class="lyric-priority-btn" title="下移优先级" onclick="moveLyricSource(this, 1)">▼</button>
+            </div>
+          </div>
+
+          <!-- 歌词源 3: Apple Music -->
+          <div class="lyric-source-card" data-source-id="applemusic">
+            <input type="checkbox" checked title="启用/停用该歌词源" onchange="toggleLyricSource(this)" />
+            <div class="lyric-source-meta">
+              <div class="lyric-source-title">
+                <span>Apple Music</span>
+                <span class="lyric-source-tag">国际曲库 / 逐字时间轴</span>
+              </div>
+              <div class="lyric-source-sub">欧美原版曲目与高保真唱片歌词准确，提供逐词级别高精同步。</div>
+            </div>
+            <div class="lyric-priority-actions">
+              <button class="lyric-priority-btn" title="上移优先级" onclick="moveLyricSource(this, -1)">▲</button>
+              <button class="lyric-priority-btn" title="下移优先级" onclick="moveLyricSource(this, 1)">▼</button>
+            </div>
+          </div>
+
+          <!-- 歌词源 4: Last.fm -->
+          <div class="lyric-source-card" data-source-id="lastfm">
+            <input type="checkbox" title="启用/停用该歌词源" onchange="toggleLyricSource(this)" />
+            <div class="lyric-source-meta">
+              <div class="lyric-source-title">
+                <span>Last.fm (社区元数据)</span>
+                <span class="lyric-source-tag" style="background:var(--surface); color:var(--text-muted);">纯文本 / 辅助兜底</span>
+              </div>
+              <div class="lyric-source-sub">社区沉淀长文本，无 LRC 时间轴，适合小众独立曲目作底线兜底。</div>
+            </div>
+            <div class="lyric-priority-actions">
+              <button class="lyric-priority-btn" title="上移优先级" onclick="moveLyricSource(this, -1)">▲</button>
+              <button class="lyric-priority-btn" title="下移优先级" onclick="moveLyricSource(this, 1)">▼</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 歌词匹配高级选项 -->
+        <div style="background:var(--surface-3); border:1px solid var(--border); padding:10px 12px; border-radius:4px; margin-top:4px; font-size:11.5px; display:flex; flex-direction:column; gap:6px;">
+          <strong style="color:var(--text-bright);">歌词匹配高级选项：</strong>
+          <label class="form-checkbox-label">
+            <input type="checkbox" checked />
+            <span>自动过滤歌词头部冗余元标签（作词/作曲/编曲等重复头）并规范化</span>
+          </label>
+          <label class="form-checkbox-label">
+            <input type="checkbox" checked />
+            <span>日韩/小语种优先保留双语对照歌词（若源支持）</span>
+          </label>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <span>单个歌词源请求超时限制：</span>
+            <input type="number" class="form-input" style="width:60px; padding:2px 6px;" value="3" min="1" max="10" />
+            <span>秒</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">取消</button>
       <button class="btn primary" onclick="closeModal()">保存首选项</button>
+    </div>
+  </div>
+
+  <!-- 8. 单曲内嵌歌词独立编辑弹窗 (FR-6 / BIZ-012) -->
+  <div class="modal-window" id="modal-lyrics-edit" style="max-width: 760px;">
+    <div class="modal-header">
+      <span class="modal-title">🎵 内嵌歌词独立编辑 (USLT / LYRICS) · 单曲隔离</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- 曲目元信息 -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-3); border:1px solid var(--border); padding:8px 12px; border-radius:4px; font-size:12px;">
+        <div>
+          当前曲目：<strong style="color:var(--text-bright)" id="lyric-modal-filename">01-02 Main Theme.flac</strong>
+          <span style="color:var(--text-muted); margin-left:8px;" id="lyric-modal-artist">艺术家: Tiger Band</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="lyric-source-tag">UTF-8 编码</span>
+          <span class="lyric-source-tag" id="lyric-modal-format-badge">ID3v2.4 USLT / FLAC VORBIS</span>
+        </div>
+      </div>
+
+      <!-- 编辑工具栏 -->
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px; font-size:12px;">
+          <span style="color:var(--text-bright)">行数统计：<b id="lyric-line-count" style="color:var(--accent);">42</b> 行</span>
+          <span id="lyric-timecode-badge" style="color:var(--state-ok); font-size:11.5px; display:inline-flex; align-items:center; gap:4px;">
+            <span>⏱️</span> 检测到有效 LRC 时间轴 [mm:ss.xx]
+          </span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn ghost" style="padding:3px 8px; font-size:11px;" onclick="cleanLyricBlankLines()">清洗空行</button>
+          <button class="btn ghost" style="padding:3px 8px; font-size:11px;" onclick="stripLyricTimestamps()">去除时间轴 (转纯文本)</button>
+          <button class="btn ghost" style="padding:3px 8px; font-size:11px;" onclick="shiftLyricTimestamps(0.5)">时间轴 +0.5s</button>
+          <button class="btn ghost" style="padding:3px 8px; font-size:11px;" onclick="restoreOriginalLyrics()">还原为初始</button>
+        </div>
+      </div>
+
+      <!-- 歌词大文本编辑域 -->
+      <textarea class="lyrics-editor-textarea" id="lyric-editor-textarea" oninput="updateLyricMetrics()" placeholder="在此粘贴或输入 LRC 时间轴歌词 / 纯文本歌词…"></textarea>
+
+      <!-- 隔离与安全提示 -->
+      <div class="modal-alert info" style="margin-top:2px;">
+        🛡️ <strong>持久化隔离铁律 (FR-4 / FR-6 / BIZ-012)</strong>：<br/>
+        • 内嵌歌词属于单曲专属富媒体内容，严禁在主界面被批量覆盖或串写。<br/>
+        • 点击「应用至编辑态」后仅更新内存中当前曲目的编辑态数据，<strong>绝不直接写入磁盘</strong>。<br/>
+        • 需在主界面工具栏点击<strong>【确认写回】</strong>后才会最终落盘持久化。
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex; justify-content:space-between;">
+      <button class="btn" style="color:var(--state-failed); border-color:var(--state-failed);" onclick="clearCurrentLyrics()">🗑️ 清空此曲目歌词</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn primary" onclick="applyLyricsEdit()">应用至编辑态 (待写回)</button>
+      </div>
     </div>
   </div>
 
@@ -1901,15 +2641,21 @@
     document.getElementById('chip-cols').textContent = extraHidden ? '列显隐 ▾ (已隐藏扩展)' : '列显隐 ▾';
   }
 
-  // 4. 行选择联动详情面板 (A4 -> A5)
+  // 4. 当前选中行与详情面板联动 (A4 -> A5)
+  var currentSelectedRowId = 2;
+
   function selectRow(rowEl, title, artist, album, year, genre, status) {
     document.querySelectorAll('.track-row').forEach(function(r) { r.classList.remove('selected'); });
     rowEl.classList.add('selected');
+    currentSelectedRowId = parseInt(rowEl.getAttribute('data-row-id')) || 2;
 
     document.getElementById('detail-title').textContent = title;
     document.getElementById('detail-artist').textContent = artist;
     document.getElementById('detail-album').textContent = album;
     
+    // 更新内嵌歌词展示与状态感知按钮 (BIZ-012)
+    syncDetailLyricsState(currentSelectedRowId);
+
     var stEl = document.getElementById('detail-status');
     if (status === 'edited') {
       stEl.textContent = '已编辑（待提交）';
@@ -1926,8 +2672,377 @@
     }
   }
 
+  // 同步右侧详情面板的内嵌歌词状态
+  function syncDetailLyricsState(rowId) {
+    var data = trackLyricsData[rowId];
+    var statusText = document.getElementById('detail-lyrics-status');
+    var actionBtn = document.getElementById('detail-lyrics-btn');
+    if (!statusText || !actionBtn) return;
+
+    if (data && data.text && data.text.trim()) {
+      var lines = data.text.trim().split('\n').length;
+      statusText.textContent = '已有 LRC (' + lines + '行)';
+      statusText.style.color = 'var(--accent)';
+      actionBtn.className = 'btn-lyrics has-content';
+      actionBtn.textContent = '📝 编辑歌词';
+    } else {
+      statusText.textContent = '无内嵌歌词';
+      statusText.style.color = 'var(--text-muted)';
+      actionBtn.className = 'btn-lyrics no-content';
+      actionBtn.textContent = '+ 添加歌词';
+    }
+  }
+
   // =========================================================================
-  // 5. 交互弹窗模态体系驱动 (Modal System Logic)
+  // 5. 元数据标签双击就地编辑与 Tab 纵向跨行跳转核心实现 (FR-4 / BIZ-011)
+  // =========================================================================
+  var isNavigatingTab = false;
+
+  function startInlineEdit(td) {
+    // 拦截判断：正在编辑或只读列
+    if (!td || td.querySelector('input')) return;
+    var row = td.closest('tr');
+    if (row && row.classList.contains('failed')) {
+      alert('损坏或异常音频文件已被跳过，禁止行内编辑！');
+      return;
+    }
+    if (td.classList.contains('col-lyrics') || td.classList.contains('col-status')) {
+      return; // 歌词走专用独立模态弹窗，状态列禁止编辑
+    }
+
+    var origText = td.getAttribute('data-orig-val');
+    if (origText === null) {
+      // 首次获取原始文本
+      origText = td.textContent.trim();
+      if (origText === '—') origText = '';
+      td.setAttribute('data-orig-val', origText);
+    } else {
+      origText = td.textContent.trim();
+      if (origText === '—') origText = '';
+    }
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'cell-inline-input';
+    input.value = origText;
+
+    // 清空单元格并挂载 input
+    td.innerHTML = '';
+    td.appendChild(input);
+    input.focus();
+    input.select();
+
+    // 键盘交互：Enter/Blur 完成编辑但不落盘，Esc 还原，Tab 纵向跳转
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitInlineEdit(input, td, false);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        revertInlineEdit(input, td, origText);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        isNavigatingTab = true;
+        commitInlineEdit(input, td, false);
+        jumpVerticalCell(td, e.shiftKey ? -1 : 1);
+        isNavigatingTab = false;
+      }
+    });
+
+    input.addEventListener('blur', function() {
+      if (!isNavigatingTab) {
+        commitInlineEdit(input, td, false);
+      }
+    });
+  }
+
+  // 提交行内编辑（仅入内存编辑态，严禁落盘！）
+  function commitInlineEdit(input, td, isTab) {
+    if (!input || !td || !input.parentElement) return;
+    var newVal = input.value.trim();
+    var origVal = td.getAttribute('data-orig-val') || '';
+
+    // 还原单元格展示
+    if (newVal === '') {
+      td.textContent = '—';
+      td.classList.add('cell-empty');
+    } else {
+      td.textContent = newVal;
+      td.classList.remove('cell-empty');
+    }
+
+    // 若发生改动，打上编辑态标记
+    if (newVal !== origVal) {
+      td.classList.add('cell-edited');
+      var row = td.closest('tr');
+      if (row) {
+        var statusBadge = row.querySelector('.status-badge');
+        if (statusBadge && !statusBadge.classList.contains('failed')) {
+          statusBadge.className = 'status-badge edited';
+          statusBadge.title = '已就地修改（待提交）';
+        }
+        var rowId = parseInt(row.getAttribute('data-row-id')) || 1;
+        if (rowId === currentSelectedRowId) {
+          var colType = td.getAttribute('data-col');
+          if (colType === 'title') document.getElementById('detail-title').textContent = newVal || '—';
+          if (colType === 'artist') document.getElementById('detail-artist').textContent = newVal || '—';
+          if (colType === 'album') document.getElementById('detail-album').textContent = newVal || '—';
+          var stEl = document.getElementById('detail-status');
+          if (stEl) {
+            stEl.textContent = '已编辑（待提交）';
+            stEl.style.color = 'var(--state-edited)';
+          }
+        }
+      }
+      // 更新状态栏与顶部工作区提示
+      var statusMetric = document.getElementById('statusbar-uncommitted-text');
+      if (statusMetric) {
+        statusMetric.innerHTML = '已编辑未提交：<b style="color:var(--state-edited)">3 首曲目</b>';
+      }
+      var wsBadge = document.getElementById('workspace-state-badge');
+      if (wsBadge) {
+        wsBadge.textContent = '工作区 · 包含未写回改动 (3 首)';
+        wsBadge.style.borderColor = 'var(--state-edited)';
+      }
+    }
+  }
+
+  // 放弃修改，还原原始文本
+  function revertInlineEdit(input, td, origVal) {
+    if (!input || !td || !input.parentElement) return;
+    if (origVal === '') {
+      td.textContent = '—';
+      td.classList.add('cell-empty');
+    } else {
+      td.textContent = origVal;
+      td.classList.remove('cell-empty');
+    }
+  }
+
+  // Tab / Shift+Tab 纵向跨行跳转 (BIZ-011 核心规范)
+  function jumpVerticalCell(currentTd, direction) {
+    var currentRow = currentTd.closest('tr');
+    if (!currentRow) return;
+
+    // 获取所有参与打标的有效数据行 (排除分碟行和异常行)
+    var allRows = Array.from(document.querySelectorAll('#tracklist-tbody tr.track-row:not(.failed)'));
+    var currRowIdx = allRows.indexOf(currentRow);
+    if (currRowIdx === -1) return;
+
+    var targetRowIdx = currRowIdx + direction;
+    if (targetRowIdx >= 0 && targetRowIdx < allRows.length) {
+      var targetRow = allRows[targetRowIdx];
+      var colKey = currentTd.getAttribute('data-col');
+      var targetTd = targetRow.querySelector('td.cell-editable[data-col="' + colKey + '"]');
+      if (targetTd) {
+        // 选中目标行并激活行内就地编辑
+        targetRow.click();
+        setTimeout(function() {
+          startInlineEdit(targetTd);
+        }, 30);
+      }
+    }
+  }
+
+  // =========================================================================
+  // 6. 单曲内嵌歌词独立编辑与状态感知 (FR-6 / BIZ-012)
+  // =========================================================================
+  var currentLyricRowId = 2;
+
+  // 各行内嵌歌词数据模型 (与普通元数据隔离)
+  var trackLyricsData = {
+    1: {
+      filename: "01-01 Intro.flac",
+      artist: "Tiger Band",
+      format: "FLAC VORBIS COMMENT",
+      text: "",
+      initial: ""
+    },
+    2: {
+      filename: "01-02 Main Theme.flac",
+      artist: "Tiger Band",
+      format: "ID3v2.4 USLT / FLAC",
+      text: "[00:00.00]Tiger Band - Main Theme\n[00:04.12]Words and Music by Tiger Live\n[00:08.50]Recorded live at Tokyo Arena 2026\n[00:15.20]The spotlight turns on the stage tonight\n[00:19.80]Feel the heartbeat, feel the burning light\n[00:24.40]Electric roar, echoing through the hall\n[00:29.10]Together we stand, we will never fall\n[00:34.00]Guitars screaming high into the sky\n[00:39.50]No looking back, we're ready to fly\n[00:45.30]Solo riffs ignite the passionate crowd\n[00:52.10]Scream it out, sing it loud\n[00:59.80]Tiger Live forever in our soul",
+      initial: "[00:00.00]Tiger Band - Main Theme\n[00:04.12]Words and Music by Tiger Live\n[00:08.50]Recorded live at Tokyo Arena 2026\n[00:15.20]The spotlight turns on the stage tonight\n[00:19.80]Feel the heartbeat, feel the burning light\n[00:24.40]Electric roar, echoing through the hall\n[00:29.10]Together we stand, we will never fall\n[00:34.00]Guitars screaming high into the sky\n[00:39.50]No looking back, we're ready to fly\n[00:45.30]Solo riffs ignite the passionate crowd\n[00:52.10]Scream it out, sing it loud\n[00:59.80]Tiger Live forever in our soul"
+    },
+    3: {
+      filename: "01-03 Interlude.flac",
+      artist: "Tiger Band",
+      format: "FLAC VORBIS COMMENT",
+      text: "",
+      initial: ""
+    },
+    4: {
+      filename: "02-01 Encore.flac",
+      artist: "Tiger Band",
+      format: "FLAC VORBIS COMMENT",
+      text: "[00:00.00]Tiger Band - Encore (Live Special)\n[00:05.00]Thank you all for this wonderful night\n[00:12.30]One more song before the dawn arrives\n[00:18.50]Keep the memories alive and strong",
+      initial: "[00:00.00]Tiger Band - Encore (Live Special)\n[00:05.00]Thank you all for this wonderful night\n[00:12.30]One more song before the dawn arrives\n[00:18.50]Keep the memories alive and strong"
+    }
+  };
+
+  // 唤起单曲歌词独立模态编辑弹窗
+  function openLyricsModal(rowId, event) {
+    if (event) event.stopPropagation(); // 阻止表格行触发选中
+    currentLyricRowId = rowId || 2;
+    var data = trackLyricsData[currentLyricRowId] || {
+      filename: "Track " + currentLyricRowId,
+      artist: "Tiger Band",
+      format: "UTF-8",
+      text: "",
+      initial: ""
+    };
+
+    document.getElementById('lyric-modal-filename').textContent = data.filename;
+    document.getElementById('lyric-modal-artist').textContent = '艺术家: ' + data.artist;
+    document.getElementById('lyric-modal-format-badge').textContent = data.format;
+    
+    var textarea = document.getElementById('lyric-editor-textarea');
+    textarea.value = data.text;
+    updateLyricMetrics();
+
+    openModal('modal-lyrics-edit');
+  }
+
+  // 从右侧详情面板唤起歌词编辑
+  function openLyricsModalFromDetail(event) {
+    if (event) event.stopPropagation();
+    openLyricsModal(currentSelectedRowId, event);
+  }
+
+  // 歌词统计指标与时间轴检测
+  function updateLyricMetrics() {
+    var text = document.getElementById('lyric-editor-textarea').value;
+    var lines = text.trim() === '' ? 0 : text.split('\n').length;
+    document.getElementById('lyric-line-count').textContent = lines;
+
+    var hasTimecode = /\[\d{2}:\d{2}(\.\d{2,3})?\]/.test(text);
+    var badge = document.getElementById('lyric-timecode-badge');
+    if (hasTimecode) {
+      badge.innerHTML = '<span style="color:var(--state-ok)">⏱️ 检测到有效 LRC 时间轴 [mm:ss.xx]</span>';
+    } else {
+      badge.innerHTML = '<span style="color:var(--text-muted)">📄 纯文本歌词 (无 LRC 时间轴)</span>';
+    }
+  }
+
+  // 清洗空行
+  function cleanLyricBlankLines() {
+    var textarea = document.getElementById('lyric-editor-textarea');
+    var cleaned = textarea.value.split('\n').filter(function(l) { return l.trim() !== ''; }).join('\n');
+    textarea.value = cleaned;
+    updateLyricMetrics();
+  }
+
+  // 去除时间轴
+  function stripLyricTimestamps() {
+    var textarea = document.getElementById('lyric-editor-textarea');
+    var stripped = textarea.value.replace(/\[\d{2}:\d{2}(\.\d{2,3})?\]/g, '').trim();
+    textarea.value = stripped;
+    updateLyricMetrics();
+  }
+
+  // 时间轴平移测试
+  function shiftLyricTimestamps(offset) {
+    alert('已演示将所有 LRC 时间轴整体平移 +' + offset + 's');
+  }
+
+  // 还原初始歌词
+  function restoreOriginalLyrics() {
+    var data = trackLyricsData[currentLyricRowId];
+    if (data) {
+      document.getElementById('lyric-editor-textarea').value = data.initial;
+      updateLyricMetrics();
+    }
+  }
+
+  // 清空歌词
+  function clearCurrentLyrics() {
+    document.getElementById('lyric-editor-textarea').value = '';
+    updateLyricMetrics();
+  }
+
+  // 应用歌词至内存编辑态 (严禁落盘！)
+  function applyLyricsEdit() {
+    var textarea = document.getElementById('lyric-editor-textarea');
+    var newLyrics = textarea.value;
+    if (!trackLyricsData[currentLyricRowId]) {
+      trackLyricsData[currentLyricRowId] = { filename: "Track", artist: "Tiger Band", text: "", initial: "" };
+    }
+    trackLyricsData[currentLyricRowId].text = newLyrics;
+
+    // 动态更新主表格对应行的歌词状态感知按钮 (BIZ-012)
+    var btn = document.getElementById('btn-lyric-row-' + currentLyricRowId);
+    if (btn) {
+      if (newLyrics.trim()) {
+        btn.className = 'btn-lyrics has-content';
+        btn.textContent = '📝 编辑歌词';
+      } else {
+        btn.className = 'btn-lyrics no-content';
+        btn.textContent = '+ 添加歌词';
+      }
+    }
+
+    // 标记对应行编辑态
+    var rowEl = document.querySelector('tr[data-row-id="' + currentLyricRowId + '"]');
+    if (rowEl) {
+      var badge = rowEl.querySelector('.status-badge');
+      if (badge && !badge.classList.contains('failed')) {
+        badge.className = 'status-badge edited';
+        badge.title = '歌词已在内存更新（待写回落盘）';
+      }
+    }
+
+    // 若当前正在查看该曲目，同步右侧详情区
+    if (currentLyricRowId === currentSelectedRowId) {
+      syncDetailLyricsState(currentLyricRowId);
+      var stEl = document.getElementById('detail-status');
+      if (stEl) {
+        stEl.textContent = '已编辑（待提交）';
+        stEl.style.color = 'var(--state-edited)';
+      }
+    }
+
+    closeModal();
+    alert('已将内嵌歌词应用至内存编辑态！\n【铁律】：此时尚未写入磁盘，请点击主界面工具栏【确认写回】落盘保存。');
+  }
+
+  // =========================================================================
+  // 7. 首选项设置与歌词源配置 (FR-9 / BIZ-012)
+  // =========================================================================
+  function switchSettingsTab(tabNum) {
+    document.getElementById('tab-btn-pref-1').classList.toggle('active', tabNum === 1);
+    document.getElementById('tab-btn-pref-2').classList.toggle('active', tabNum === 2);
+    document.getElementById('tab-btn-pref-3').classList.toggle('active', tabNum === 3);
+
+    document.getElementById('tab-btn-pref-1').style.borderBottom = tabNum === 1 ? '2px solid var(--accent)' : 'none';
+    document.getElementById('tab-btn-pref-2').style.borderBottom = tabNum === 2 ? '2px solid var(--accent)' : 'none';
+    document.getElementById('tab-btn-pref-3').style.borderBottom = tabNum === 3 ? '2px solid var(--accent)' : 'none';
+
+    document.getElementById('tab-pref-pane-1').style.display = tabNum === 1 ? 'flex' : 'none';
+    document.getElementById('tab-pref-pane-2').style.display = tabNum === 2 ? 'flex' : 'none';
+    document.getElementById('tab-pref-pane-3').style.display = tabNum === 3 ? 'flex' : 'none';
+  }
+
+  function toggleLyricSource(cb) {
+    var card = cb.closest('.lyric-source-card');
+    if (card) {
+      card.style.opacity = cb.checked ? '1' : '0.45';
+    }
+  }
+
+  function moveLyricSource(btn, direction) {
+    var card = btn.closest('.lyric-source-card');
+    if (!card) return;
+    var parent = card.parentElement;
+    if (direction === -1 && card.previousElementSibling) {
+      parent.insertBefore(card, card.previousElementSibling);
+    } else if (direction === 1 && card.nextElementSibling) {
+      parent.insertBefore(card.nextElementSibling, card);
+    }
+  }
+
+  // =========================================================================
+  // 8. 交互弹窗模态体系驱动 (Modal System Logic)
   // =========================================================================
   var activeModalId = null;
 
@@ -1972,12 +3087,409 @@
   }
 
   function applyCandidate(isBatch) {
-    alert(isBatch ? '已批量将匹配候选应用到所有曲目！状态变为【已匹配】。' : '已将候选应用到当前选中行！');
+    alert(isBatch 
+      ? '已批量将基础元数据匹配候选（标题/艺术家/专辑/曲目号等）应用到所有曲目！\n状态变为【已匹配】（待确认写回落盘）。\n歌词请通过【🎵 歌词搜索】独立批量检索与装配。' 
+      : '已将基础元数据候选应用到当前选中行！');
     closeModal();
   }
 
+  // =========================================================================
+  // 9. 歌词在线多源搜索专属模态窗交互 (FR-6 / BIZ-012)
+  // =========================================================================
+  var currentSearchTrackId = 2;
+  var currentCandidateSource = 'netease';
+
+  // 多源候选模拟数据字典
+  var lyricsCandidatesMock = {
+    1: {
+      title: "Intro",
+      artist: "Tiger Band",
+      candidates: {
+        netease: {
+          sourceName: "网易云音乐 (Netease)",
+          score: "95%",
+          title: "Tiger Band - Intro (Live 2026)",
+          type: "双语 LRC",
+          lines: 12,
+          content: "[00:00.00]Tiger Band - Intro\n[00:05.10] Tokyo Arena Live Opening\n[00:05.10] 2026 东京竞技场现场开场\n[00:10.20]Are you guys ready tonight?\n[00:10.20]大家今晚准备好了吗？\n[00:15.50]Make some noise!\n[00:15.50]尖叫声响起来！\n[00:22.00]Here comes Tiger Band!\n[00:22.00]有请 Tiger Band 登场！"
+        },
+        qqmusic: {
+          sourceName: "QQ 音乐 (QQMusic)",
+          score: "89%",
+          title: "Intro - Tiger Live Album",
+          type: "原版 LRC",
+          lines: 8,
+          content: "[00:00.00]Tiger Band - Intro\n[00:05.10]Tokyo Arena Live Opening\n[00:10.20]Are you guys ready tonight?\n[00:15.50]Make some noise!\n[00:22.00]Here comes Tiger Band!"
+        }
+      }
+    },
+    2: {
+      title: "Main Theme",
+      artist: "Tiger Band",
+      candidates: {
+        netease: {
+          sourceName: "网易云音乐 (Netease)",
+          score: "98%",
+          title: "Tiger Band - Main Theme (Live 2026)",
+          type: "双语 LRC",
+          lines: 24,
+          content: "[00:00.00]Tiger Band - Main Theme (Live 2026)\n[00:04.12]词曲：Tiger Live Official\n[00:08.50]Recorded live at Tokyo Arena 2026\n[00:15.20]The spotlight turns on the stage tonight\n[00:15.20]今夜聚光灯重新照亮舞台\n[00:19.80]Feel the heartbeat, feel the burning light\n[00:19.80]感受脉搏跳动与炽热的光芒\n[00:24.40]Electric roar, echoing through the hall\n[00:24.40]电声轰鸣回荡在整座殿堂\n[00:29.10]Together we stand, we will never fall\n[00:29.10]我们并肩而立，永不倒下\n[00:34.00]Guitars screaming high into the sky\n[00:34.00]吉他啸叫直冲云霄\n[00:39.50]No looking back, we're ready to fly\n[00:45.30]Solo riffs ignite the passionate crowd\n[00:52.10]Scream it out, sing it loud\n[00:59.80]Tiger Live forever in our soul"
+        },
+        qqmusic: {
+          sourceName: "QQ 音乐 (QQMusic)",
+          score: "92%",
+          title: "Tiger Band - Main Theme",
+          type: "原版 LRC",
+          lines: 15,
+          content: "[00:00.00]Tiger Band - Main Theme\n[00:04.12]Words and Music by Tiger Live\n[00:08.50]Recorded live at Tokyo Arena 2026\n[00:15.20]The spotlight turns on the stage tonight\n[00:19.80]Feel the heartbeat, feel the burning light\n[00:24.40]Electric roar, echoing through the hall\n[00:29.10]Together we stand, we will never fall\n[00:34.00]Guitars screaming high into the sky\n[00:39.50]No looking back, we're ready to fly\n[00:45.30]Solo riffs ignite the passionate crowd\n[00:52.10]Scream it out, sing it loud\n[00:59.80]Tiger Live forever in our soul"
+        },
+        apple: {
+          sourceName: "Apple Music",
+          score: "88%",
+          title: "Main Theme - Tiger Live Album",
+          type: "逐行滚动 LRC",
+          lines: 14,
+          content: "[00:00.00]Main Theme - Tiger Band\n[00:08.50]Live at Tokyo Arena 2026\n[00:15.20]The spotlight turns on the stage tonight\n[00:19.80]Feel the heartbeat, feel the burning light\n[00:24.40]Electric roar, echoing through the hall\n[00:29.10]Together we stand, we will never fall\n[00:34.00]Guitars screaming high into the sky\n[00:39.50]No looking back, we're ready to fly\n[00:45.30]Solo riffs ignite the passionate crowd\n[00:52.10]Scream it out, sing it loud\n[00:59.80]Tiger Live forever in our soul"
+        }
+      }
+    },
+    3: {
+      title: "Interlude",
+      artist: "Tiger Band",
+      candidates: {}
+    },
+    4: {
+      title: "Encore",
+      artist: "Tiger Band",
+      candidates: {
+        netease: {
+          sourceName: "网易云音乐 (Netease)",
+          score: "96%",
+          title: "Tiger Band - Encore (Live Special)",
+          type: "双语 LRC",
+          lines: 16,
+          content: "[00:00.00]Tiger Band - Encore (Live Special)\n[00:05.00]Thank you all for this wonderful night\n[00:05.00]感谢大家为今夜带来的无尽精彩\n[00:12.30]One more song before the dawn arrives\n[00:12.30]在破晓到来之前，让我们再唱一曲\n[00:18.50]Keep the memories alive and strong\n[00:18.50]让炽热的记忆在心底永远回响\n[00:25.00]See you next time, Tokyo!\n[00:25.00]下次再见，东京！"
+        },
+        qqmusic: {
+          sourceName: "QQ 音乐 (QQMusic)",
+          score: "94%",
+          title: "Encore (Live Special Edition)",
+          type: "原版 LRC",
+          lines: 8,
+          content: "[00:00.00]Tiger Band - Encore (Live Special)\n[00:05.00]Thank you all for this wonderful night\n[00:12.30]One more song before the dawn arrives\n[00:18.50]Keep the memories alive and strong\n[00:25.00]See you next time, Tokyo!"
+        }
+      }
+    },
+    5: {
+      title: "Outro.wav",
+      artist: "—",
+      candidates: {}
+    }
+  };
+
+  // 唤起歌词搜索专属模态窗
+  function openLyricsSearchModal() {
+    // 默认对齐当前主表格选中的曲目
+    var trackId = (currentSelectedRowId && currentSelectedRowId !== 5) ? currentSelectedRowId : 2;
+    var targetRow = document.getElementById('lyrics-track-row-' + trackId);
+    switchLyricsSearchTrack(trackId, targetRow);
+    openModal('modal-lyrics-search');
+  }
+
+  // 切换待匹配曲目
+  function switchLyricsSearchTrack(trackId, rowEl) {
+    currentSearchTrackId = trackId;
+    document.querySelectorAll('.lyrics-track-row').forEach(function(r) { r.classList.remove('active'); });
+    if (rowEl) rowEl.classList.add('active');
+
+    var trackInfo = lyricsCandidatesMock[trackId] || { title: "未知曲目", artist: "Tiger Band", candidates: {} };
+    var inputEl = document.getElementById('lyrics-search-input');
+    if (inputEl) {
+      inputEl.value = trackInfo.artist + ' - ' + trackInfo.title;
+    }
+
+    // 更新本地歌词展示
+    var localData = trackLyricsData[trackId] || { text: "" };
+    var localContent = document.getElementById('lyrics-local-content');
+    var localLines = document.getElementById('lyrics-local-lines');
+    if (localContent && localLines) {
+      if (localData.text && localData.text.trim()) {
+        localContent.textContent = localData.text;
+        localLines.textContent = localData.text.trim().split('\n').length + ' 行';
+      } else {
+        localContent.textContent = '（本地暂无内嵌歌词）';
+        localLines.textContent = '0 行 · 空白';
+      }
+    }
+
+    // 重新渲染候选卡片列表
+    renderCandidatesForTrack(trackId);
+  }
+
+  // 根据当前曲目渲染候选卡片
+  function renderCandidatesForTrack(trackId) {
+    var container = document.getElementById('lyrics-candidate-container');
+    if (!container) return;
+
+    var trackInfo = lyricsCandidatesMock[trackId];
+    var cands = trackInfo ? trackInfo.candidates : {};
+    var keys = Object.keys(cands);
+
+    var html = '';
+    if (keys.length === 0) {
+      html += '<div style="padding:10px 12px; text-align:center; color:var(--text-muted); font-size:11.5px; background:var(--surface-2); border-radius:4px; margin-bottom:6px;">' +
+        (trackId === 3 ? '🎵 纯音乐音轨，已依据规则自动跳过歌词检索。' : '⚠️ 各源暂未检索到高匹配歌词，可调整上方关键词重新检索。') +
+        '</div>';
+    } else {
+      keys.forEach(function(k, idx) {
+        var item = cands[k];
+        var isFirst = (idx === 0);
+        var srcIcon = k === 'netease' ? '🔴' : (k === 'qqmusic' ? '🟢' : '🍎');
+        html += '<div class="lyrics-candidate-card ' + (isFirst ? 'selected' : '') + '" id="card-src-' + k + '" onclick="selectLyricsCandidate(this, \'' + k + '\')">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+            '<span style="font-weight:600; color:var(--text-bright); font-size:12px;">' + srcIcon + ' ' + item.sourceName + '</span>' +
+            '<span style="color:var(--state-ok); font-weight:700; font-size:12px;">' + item.score + ' 匹配</span>' +
+          '</div>' +
+          '<div style="font-size:11.5px; color:var(--text); margin-top:2px;">' + item.title + '</div>' +
+          '<div style="display:flex; gap:6px; font-size:10.5px; margin-top:2px;">' +
+            '<span class="lyric-source-tag" style="color:var(--state-ok); border-color:var(--state-ok);">⏱️ 精确 LRC 时间轴</span>' +
+            '<span class="lyric-source-tag">' + item.lines + ' 行</span>' +
+            '<span class="lyric-source-tag" style="color:var(--accent);">' + item.type + '</span>' +
+          '</div>' +
+        '</div>';
+      });
+    }
+
+    // 无论是否有在线候选，均追加一条【不应用（跳过）】候选卡片
+    var isSkipSelected = (keys.length === 0);
+    html += '<div class="lyrics-candidate-card skip-card ' + (isSkipSelected ? 'selected' : '') + '" id="card-src-skip" onclick="selectLyricsCandidate(this, \'skip\')">' +
+      '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+        '<span style="font-weight:600; color:var(--text-bright); font-size:12px;">🚫 不应用（跳过此曲目）</span>' +
+        '<span style="color:var(--text-muted); font-size:11px; font-weight:600;">跳过装配</span>' +
+      '</div>' +
+      '<div style="font-size:11.5px; color:var(--text-muted);">保持本地现有歌词不变，不将在线候选歌词装配至本曲目</div>' +
+      '<div style="display:flex; gap:6px; font-size:10.5px; margin-top:2px;">' +
+        '<span class="lyric-source-tag" style="color:var(--text-muted); border-color:var(--border);">保留原状</span>' +
+        '<span class="lyric-source-tag">不修改歌词</span>' +
+      '</div>' +
+    '</div>';
+
+    container.innerHTML = html;
+
+    // 默认高亮第一个候选源（若无在线候选则默认选中 skip）
+    var defaultSource = (keys.length > 0) ? keys[0] : 'skip';
+    currentCandidateSource = defaultSource;
+    updateCandidateDiffView(trackId, defaultSource);
+  }
+
+  // 选中特定候选卡片
+  function selectLyricsCandidate(cardEl, sourceKey) {
+    document.querySelectorAll('.lyrics-candidate-card').forEach(function(c) { c.classList.remove('selected'); });
+    if (cardEl) cardEl.classList.add('selected');
+    currentCandidateSource = sourceKey;
+    updateCandidateDiffView(currentSearchTrackId, sourceKey);
+  }
+
+  // 更新右侧 Diff 视图
+  function updateCandidateDiffView(trackId, sourceKey) {
+    var candContent = document.getElementById('lyrics-candidate-content');
+    var candLines = document.getElementById('lyrics-candidate-lines');
+    var badge = document.getElementById('lyrics-diff-badge');
+    var footerSource = document.getElementById('lyrics-footer-selected-source');
+
+    if (sourceKey === 'skip') {
+      if (candContent) {
+        candContent.innerHTML = '<div style="color:var(--text-muted); padding:36px 16px; text-align:center; font-family:var(--font-sans); line-height:1.6;">' +
+          '<div style="font-size:26px; margin-bottom:8px;">🚫</div>' +
+          '<strong style="color:var(--text-bright); font-size:13px;">已选择：不应用（跳过此曲目歌词）</strong><br>' +
+          '<span style="font-size:11.5px;">本曲目将保持本地现有内嵌歌词（若无歌词则保持空白），不对文件做任何歌词变更。</span>' +
+          '</div>';
+      }
+      if (candLines) candLines.textContent = '保持原状 · 不修改';
+      if (badge) {
+        badge.textContent = '🚫 不应用 (跳过此曲目)';
+        badge.style.color = 'var(--text-muted)';
+        badge.style.background = 'var(--surface-hover)';
+      }
+      if (footerSource) {
+        footerSource.textContent = '🚫 不应用（跳过）';
+        footerSource.style.color = 'var(--text-muted)';
+      }
+      return;
+    }
+
+    var trackInfo = lyricsCandidatesMock[trackId];
+    if (!trackInfo || !trackInfo.candidates || !trackInfo.candidates[sourceKey]) return;
+
+    var item = trackInfo.candidates[sourceKey];
+    if (candContent) candContent.textContent = item.content;
+    if (candLines) candLines.textContent = item.lines + ' 行 · 已对齐';
+    if (badge) {
+      badge.textContent = item.sourceName + ' (' + item.score + ') · ' + item.type;
+      badge.style.color = 'var(--state-matched)';
+      badge.style.background = 'var(--state-matched-soft)';
+    }
+    if (footerSource) {
+      footerSource.textContent = item.sourceName;
+      footerSource.style.color = 'var(--accent)';
+    }
+  }
+
+  // 切换对比模式 (左右双栏对比 vs 仅看候选)
+  function toggleDiffMode(mode) {
+    var colLocal = document.getElementById('lyrics-col-local');
+    var btnSplit = document.getElementById('btn-diff-split');
+    var btnCand = document.getElementById('btn-diff-candidate');
+
+    if (mode === 'candidate-only') {
+      if (colLocal) colLocal.style.display = 'none';
+      if (btnSplit) btnSplit.classList.remove('active');
+      if (btnCand) btnCand.classList.add('active');
+    } else {
+      if (colLocal) colLocal.style.display = 'flex';
+      if (btnSplit) btnSplit.classList.add('active');
+      if (btnCand) btnCand.classList.remove('active');
+    }
+  }
+
+  // 歌词源启停药丸切换
+  function toggleSearchSource(checkbox, sourceKey) {
+    var pill = checkbox.closest('.lyrics-source-pill');
+    if (pill) {
+      pill.classList.toggle('active', checkbox.checked);
+    }
+  }
+
+  // 检索当前选定曲目
+  function triggerLyricsSingleSearch() {
+    var inputVal = document.getElementById('lyrics-search-input').value;
+    alert('正在为 [' + inputVal + '] 向已启用的网易云、QQ 音乐、Apple Music 源并发检索...\n✓ 检索完成，已命中 3 个可用候选。');
+    renderCandidatesForTrack(currentSearchTrackId);
+  }
+
+  // 批量并发检索所有 5 首曲目
+  function triggerLyricsBatchSearch() {
+    alert('正在并发检索工作区全部 5 首曲目的在线歌词...\n- 网易云音乐: 命中 4 首 (1 首纯音乐跳过)\n- QQ 音乐: 命中 3 首\n- Apple Music: 命中 3 首\n✓ 批量歌词候选检索就绪！');
+    var sumEl = document.getElementById('lyrics-search-summary');
+    if (sumEl) sumEl.textContent = '共 5 首 · 4 首已获候选 (1 首纯音乐跳过)';
+  }
+
+  // 应用候选至当前曲目 (进入内存编辑态，严禁落盘！)
+  function applyLyricsToCurrentTrack() {
+    if (currentCandidateSource === 'skip') {
+      var trackRow = document.getElementById('lyrics-track-row-' + currentSearchTrackId);
+      if (trackRow) {
+        var badgeText = trackRow.querySelector('.status-badge-text');
+        if (badgeText) {
+          badgeText.textContent = '🚫 已跳过 (保留原状)';
+          badgeText.style.color = 'var(--text-muted)';
+        }
+      }
+      closeModal();
+      alert('已将曲目 #' + currentSearchTrackId + ' 标记为【跳过】！\n\n- 未对内嵌歌词作任何变更；\n- 本地现有内嵌歌词（或空白）已完整保留。');
+      return;
+    }
+
+    var trackInfo = lyricsCandidatesMock[currentSearchTrackId];
+    if (!trackInfo || !trackInfo.candidates || !trackInfo.candidates[currentCandidateSource]) {
+      alert('当前选区无有效候选歌词可应用！');
+      return;
+    }
+    var item = trackInfo.candidates[currentCandidateSource];
+    if (!trackLyricsData[currentSearchTrackId]) {
+      trackLyricsData[currentSearchTrackId] = { filename: "Track", artist: "Tiger Band", text: "", initial: "" };
+    }
+    trackLyricsData[currentSearchTrackId].text = item.content;
+
+    // 更新主表格对应行按钮状态
+    var btn = document.getElementById('btn-lyric-row-' + currentSearchTrackId);
+    if (btn) {
+      btn.className = 'btn-lyrics has-content';
+      btn.textContent = '📝 编辑歌词';
+    }
+
+    // 打上编辑态标记
+    var rowEl = document.querySelector('tr[data-row-id="' + currentSearchTrackId + '"]');
+    if (rowEl) {
+      var badge = rowEl.querySelector('.status-badge');
+      if (badge && !badge.classList.contains('failed')) {
+        badge.className = 'status-badge edited';
+        badge.title = '歌词已在内存更新（待写回落盘）';
+      }
+    }
+
+    // 若当前正在查看该曲目，同步右侧详情区
+    if (currentSearchTrackId === currentSelectedRowId) {
+      syncDetailLyricsState(currentSearchTrackId);
+      var stEl = document.getElementById('detail-status');
+      if (stEl) {
+        stEl.textContent = '已编辑（待提交）';
+        stEl.style.color = 'var(--state-edited)';
+      }
+    }
+
+    // 更新状态栏与顶部工作区提示
+    var statusMetric = document.getElementById('statusbar-uncommitted-text');
+    if (statusMetric) {
+      statusMetric.innerHTML = '已编辑未提交：<b style="color:var(--state-edited)">3 首曲目</b>';
+    }
+
+    closeModal();
+    alert('已将 [' + item.sourceName + '] 歌词应用至曲目 #' + currentSearchTrackId + ' 的【内存编辑态】！\n\n🛡️【持久化隔离铁律】：本次操作未写入磁盘，文件标签保持不变。\n请在主界面工具栏点击【💾 确认写回】执行最终落盘。');
+  }
+
+  // 一键批量应用全部高匹配歌词 (≥85%)
+  function applyBatchLyricsAll() {
+    var appliedCount = 0;
+    [1, 2, 4].forEach(function(tid) {
+      var trackInfo = lyricsCandidatesMock[tid];
+      if (trackInfo && trackInfo.candidates) {
+        var topKey = Object.keys(trackInfo.candidates)[0];
+        if (topKey) {
+          var item = trackInfo.candidates[topKey];
+          if (!trackLyricsData[tid]) {
+            trackLyricsData[tid] = { filename: "Track " + tid, artist: "Tiger Band", text: "", initial: "" };
+          }
+          trackLyricsData[tid].text = item.content;
+
+          var btn = document.getElementById('btn-lyric-row-' + tid);
+          if (btn) {
+            btn.className = 'btn-lyrics has-content';
+            btn.textContent = '📝 编辑歌词';
+          }
+          var rowEl = document.querySelector('tr[data-row-id="' + tid + '"]');
+          if (rowEl) {
+            var badge = rowEl.querySelector('.status-badge');
+            if (badge && !badge.classList.contains('failed')) {
+              badge.className = 'status-badge edited';
+              badge.title = '歌词已批量装配至内存（待写回落盘）';
+            }
+          }
+          appliedCount++;
+        }
+      }
+    });
+
+    if (currentSelectedRowId) {
+      syncDetailLyricsState(currentSelectedRowId);
+    }
+
+    var statusMetric = document.getElementById('statusbar-uncommitted-text');
+    if (statusMetric) {
+      statusMetric.innerHTML = '已编辑未提交：<b style="color:var(--state-edited)">4 首曲目</b>';
+    }
+    var wsBadge = document.getElementById('workspace-state-badge');
+    if (wsBadge) {
+      wsBadge.textContent = '工作区 · 包含未写回改动 (4 首)';
+      wsBadge.style.borderColor = 'var(--state-edited)';
+    }
+
+    closeModal();
+    alert('✨ 成功将 ' + appliedCount + ' 首曲目的高匹配在线歌词装配至【内存编辑态】！\n\n🛡️【持久化隔离铁律】：当前所有歌词变动均严格保存在前端内存中，绝未写入磁盘。\n请在主界面工具栏点击【💾 确认写回】执行持久化落盘。');
+  }
+
   function executeWriteBack() {
-    alert('落盘写回成功！已更新 2 个文件的元数据，首次快照保持隔离不变。');
+    alert('落盘写回成功！已更新 2 个文件的元数据与内嵌歌词标签，首次快照保持隔离不变。');
     closeModal();
   }
 
@@ -1996,20 +3508,13 @@
   function applyBatchEdit() {
     var isClear = document.getElementById('batch-clear-check').checked;
     var field = document.getElementById('batch-field-select').value;
-    alert(isClear ? ('已显式标记清除选区曲目的 [' + field + '] 字段！') : ('已批量将选区曲目的 [' + field + '] 设置为新值！'));
+    alert(isClear ? ('已显式标记清除选区曲目的 [' + field + '] 字段！') : ('已批量将选区曲目的 [' + field + '] 设置为新值！\n（注意：内嵌歌词已按 BIZ-012 规则隔离，不受批量覆盖）'));
     closeModal();
   }
 
   function executeRenumber() {
     alert('已排除缺碟号曲目 Outro.wav，成功为其馀 4 首曲目连续分配音轨序号！');
     closeModal();
-  }
-
-  function switchSettingsTab(tabNum) {
-    document.getElementById('tab-btn-pref-1').classList.toggle('active', tabNum === 1);
-    document.getElementById('tab-btn-pref-2').classList.toggle('active', tabNum === 2);
-    document.getElementById('tab-pref-pane-1').style.display = tabNum === 1 ? 'flex' : 'none';
-    document.getElementById('tab-pref-pane-2').style.display = tabNum === 2 ? 'flex' : 'none';
   }
 
   function triggerAudition() {
