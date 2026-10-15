@@ -38,7 +38,7 @@ export interface TrackItem {
 export type EditableTagField = keyof Omit<TrackTagData, 'lyrics'>
 
 export interface ColumnDefinition {
-  key: keyof TrackTagData | 'id' | 'filename' | 'status' | 'duration' | 'lyricsBtn'
+  key: keyof TrackTagData | 'id' | 'filename' | 'status' | 'duration'
   label: string
   minWidth: number
   width: number
@@ -53,7 +53,7 @@ export type ModalType =
   | 'batch-edit'
   | 'online-match'
   | 'lyrics-search'
-  | 'lyrics-edit'
+  | 'cover-edit'
   | 'rename-preview'
   | 'write-confirm'
   | 'settings'

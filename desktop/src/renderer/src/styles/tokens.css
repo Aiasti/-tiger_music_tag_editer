@@ -16,6 +16,8 @@
   --text-faint: #4b5263;
   --text-bright: #e5e5e6;
   --accent: #61afef;
+  --accent-hover: #4fa0df;
+  --accent-contrast: #1e1e24;
   --accent-soft: rgba(97, 175, 239, 0.12);
   --state-ok: #98c379;
   --state-ok-soft: rgba(152, 195, 121, 0.12);
@@ -45,6 +47,8 @@
   --text-faint: #a0a1a7;
   --text-bright: #1b1c1e;
   --accent: #4078f2;
+  --accent-hover: #2960d6;
+  --accent-contrast: #ffffff;
   --accent-soft: rgba(64, 120, 242, 0.1);
   --state-ok: #50a14f;
   --state-ok-soft: rgba(80, 161, 79, 0.12);

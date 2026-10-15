@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
-import { useModals } from '../../composables/useModals'
 import { fetchCoverUrl } from '../../api/client'
 import type { TrackTagData } from '../../types'
 
-const { selectedTrack } = useWorkspace()
-const { openModal } = useModals()
+const { selectedTrack, pendingCovers } = useWorkspace()
 
 const statusText = computed(() => {
   switch (selectedTrack.value?.status) {
@@ -92,7 +90,15 @@ watch(
 
 onUnmounted(releaseCover)
 
-const openLyricsEdit = () => openModal('lyrics-edit')
+/** 待写回封面（BIZ-020）：存在键即表示该曲目有封面编辑态；空串表示已标记移除封面。 */
+const displayCover = computed(() => {
+  const id = selectedTrack.value?.id
+  const pending = id == null ? undefined : pendingCovers.value[id]
+  if (pending === undefined) {
+    return coverUrl.value
+  }
+  return pending === '' ? null : pending
+})
 </script>
 
 <template>
@@ -104,9 +110,9 @@ const openLyricsEdit = () => openModal('lyrics-edit')
         <div class="track-title">{{ selectedTrack.tags.title || selectedTrack.filename }}</div>
       </section>
 
-      <!-- 封面媒体卡片 (FR-6) -->
+      <!-- 封面媒体卡片 (FR-6)：只读展示；编辑入口在工作区次工具栏「编辑封面」（BIZ-020） -->
       <section class="cover-card">
-        <img v-if="coverUrl" class="cover-preview" :src="coverUrl" alt="内嵌专辑封面" />
+        <img v-if="displayCover" class="cover-preview" :src="displayCover" alt="内嵌专辑封面" />
         <div v-else class="cover-preview cover-empty">
           <span>{{ coverLoading ? '…' : '🎵' }}</span>
         </div>
@@ -116,9 +122,7 @@ const openLyricsEdit = () => openModal('lyrics-edit')
             {{ selectedTrack.ext.toUpperCase() }} · {{ selectedTrack.size || '—' }} ·
             {{ selectedTrack.duration || '时长未知' }}
           </span>
-          <span class="link" title="封面替换依赖于写回能力，计划在 S2 交付">
-            🖼️ 替换封面图片…（S2）
-          </span>
+          <span class="cover-state">{{ displayCover ? '已有封面' : '无封面' }}</span>
         </div>
       </section>
 
@@ -160,21 +164,14 @@ const openLyricsEdit = () => openModal('lyrics-edit')
         <p v-else class="diff-empty">无未提交变更</p>
       </section>
 
-      <!-- 内嵌歌词 (FR-6) -->
+      <!-- 内嵌歌词 (FR-6)：只读预览；编辑入口收敛到工具栏「🎵 歌词搜索」弹窗（BIZ-018、BIZ-020） -->
       <section>
         <div class="section-head">
           <h3 class="section-title">内嵌歌词</h3>
-          <span class="link" @click="openLyricsEdit">{{ hasLyrics ? '编辑歌词' : '添加歌词' }}</span>
         </div>
         <div class="lyrics-box">
           <template v-if="hasLyrics">{{ selectedTrack.tags.lyrics }}</template>
           <span v-else class="lyrics-empty">（本地音轨无内嵌歌词）</span>
-        </div>
-        <div class="lyrics-actions">
-          <button class="btn sm" @click="openLyricsEdit">
-            {{ hasLyrics ? '📝 编辑歌词' : '+ 添加歌词' }}
-          </button>
-          <button class="btn sm" @click="openModal('lyrics-search')">🎵 在线搜索歌词</button>
         </div>
       </section>
     </div>
@@ -272,9 +269,8 @@ const openLyricsEdit = () => openModal('lyrics-edit')
 .cover-meta .filesize {
   color: var(--text-muted);
 }
-.link {
-  color: var(--accent);
-  cursor: pointer;
+.cover-state {
+  color: var(--text-faint);
 }
 
 /* 核心元数据键值表 */
@@ -382,11 +378,6 @@ const openLyricsEdit = () => openModal('lyrics-edit')
 .lyrics-empty {
   color: var(--text-muted);
   font-family: var(--font);
-}
-.lyrics-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
 }
 
 .panel-empty {

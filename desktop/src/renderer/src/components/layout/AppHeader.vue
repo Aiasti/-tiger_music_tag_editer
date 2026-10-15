@@ -50,28 +50,36 @@ const handleRollback = () => {
     <!-- A2: 主工具栏 (Primary Toolbar) -->
     <div class="toolbar primary-toolbar">
       <div class="toolbar-group">
-        <button class="btn" title="导入单个或多个音频文件 (FR-1)" :disabled="importing" @click="handleImportFiles">
-          📁 导入文件
-        </button>
-        <button class="btn" title="递归扫描导入文件夹 (FR-1)" :disabled="importing" @click="handleImportFolder">
-          📂 导入文件夹
-        </button>
+        <!-- 导入按钮合并为分段按钮组（BIZ-018）：导入文件为主操作 -->
+        <div class="seg-group" role="group" aria-label="导入音频">
+          <button
+            class="seg-btn primary"
+            title="选择单个或多个音频文件导入工作区 (FR-1)"
+            :disabled="importing"
+            @click="handleImportFiles"
+          >
+            📂 导入文件
+          </button>
+          <button
+            class="seg-btn"
+            title="递归扫描文件夹批量导入音频 (FR-1)"
+            :disabled="importing"
+            @click="handleImportFolder"
+          >
+            📁 导入文件夹
+          </button>
+        </div>
         <span v-if="importing" class="importing-hint">导入中…</span>
       </div>
 
       <div class="toolbar-divider"></div>
 
       <div class="toolbar-group">
-        <span class="label-muted">匹配粒度:</span>
-        <select class="select sm">
-          <option value="album">💿 专辑粒度 (默认)</option>
-          <option value="track">🎵 单轨粒度</option>
-        </select>
-        <button class="btn" title="通过 MusicBrainz/AcoustID 获取基础元数据候选 (FR-5)" @click="openModal('online-match')">
+        <button class="btn" title="按当前选区（未选则全部）获取 MusicBrainz/AcoustID 基础元数据候选 (FR-5)" @click="openModal('online-match')">
           🌐 在线匹配
         </button>
-        <!-- BIZ-012: 独立歌词搜索专属按钮 -->
-        <button class="btn" title="批量在线多源检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
+        <!-- BIZ-012: 独立歌词搜索专属按钮（歌词主入口，BIZ-018） -->
+        <button class="btn" title="多源在线检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
           🎵 歌词搜索
         </button>
       </div>
@@ -79,8 +87,8 @@ const handleRollback = () => {
       <div class="toolbar-divider"></div>
 
       <div class="toolbar-group">
-        <button class="btn" title="依据预设模板预览重命名与目录归档 (FR-7)" @click="openModal('rename-preview')">
-          🗂️ 重命名与归档
+        <button class="btn" title="依据内置固定模板预览重命名与目录归档 (FR-7)" @click="openModal('rename-preview')">
+          🏷️ 重命名 / 归档
         </button>
         <button class="btn primary writeback-btn" title="将当前编辑态标签与重命名持久化写入磁盘 (FR-8)" @click="openModal('write-confirm')">
           <span>💾 确认写回</span>
@@ -104,21 +112,24 @@ const handleRollback = () => {
       </div>
     </div>
 
-    <!-- A3: 次工具栏 (Secondary Toolbar) -->
+    <!-- A3: 次工具栏 (Secondary Toolbar)：对齐原型 .action-chip 胶囊 -->
     <div class="toolbar secondary-toolbar">
       <div class="toolbar-group">
-        <span class="label-muted">批量操作:</span>
-        <span class="scope-badge" title="批量类操作（批量修改 / 按范围编号 / 在线匹配 / 歌词搜索）作用于当前选区（BIZ-015）">
+        <span class="action-chip scope-chip" title="批量类操作（批量编辑 / 按范围编号 / 在线匹配 / 歌词搜索）作用于当前选区（BIZ-015）">
+          <span class="chip-dot"></span>
           已选 {{ selectedTrackIds.length }} 首
         </span>
-        <button class="btn sm" title="打开批量标签编辑模态窗 (FR-4)" @click="openModal('batch-edit')">
-          📝 批量修改
+        <button class="action-chip" title="为当前选中曲目预览 / 选择 / 移除封面 (FR-6, BIZ-020)" @click="openModal('cover-edit')">
+          🖼️ 编辑封面
         </button>
-        <button class="btn sm" title="按范围顺序重新编号曲目与碟号 (FR-3, BIZ-003)" @click="openModal('renumber-confirm')">
-          🔢 按范围编号
+        <button class="action-chip" title="批量设置选中行的某一元数据字段 (FR-4)" @click="openModal('batch-edit')">
+          批量编辑字段…
         </button>
-        <button class="btn sm" title="放弃未写回改动，重置至工作区首次导入快照 (FR-8, BIZ-006)" @click="handleRollback">
-          ↺ 提交前回滚
+        <button class="action-chip" title="按选区与碟号连续分配音轨号，空选区时不可触发 (FR-3 / BIZ-003)" @click="openModal('renumber-confirm')">
+          按范围编号 1…N
+        </button>
+        <button class="action-chip" title="放弃未写回改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)" @click="handleRollback">
+          提交前回滚
         </button>
       </div>
     </div>
@@ -207,20 +218,21 @@ const handleRollback = () => {
 .toolbar {
   display: flex;
   align-items: center;
-  padding: 4px 10px;
-  gap: 8px;
+  gap: 6px;
   user-select: none;
 }
+/* 主工具栏底色为 --surface、次工具栏为 --surface-2（对齐原型） */
 .primary-toolbar {
-  height: 40px;
-  background: var(--surface-2);
+  padding: 8px 12px;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 .secondary-toolbar {
-  height: 32px;
-  background: var(--surface);
+  padding: 6px 12px;
+  gap: 8px;
+  background: var(--surface-2);
   border-bottom: 1px solid var(--border);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .toolbar-group {
@@ -233,33 +245,135 @@ const handleRollback = () => {
 }
 .toolbar-divider {
   width: 1px;
-  height: 18px;
+  height: 20px;
   background: var(--border-strong);
-  margin: 0 2px;
+  margin: 0 4px;
 }
 
-.label-muted {
-  font-size: 11.5px;
+/* 工具栏按钮：对齐原型 .btn（仅作用于本工具栏，不影响模态窗按钮） */
+.toolbar .btn {
+  height: 30px;
+  padding: 0 11px;
+  gap: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+.toolbar .btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-bright);
+  border-color: var(--text-muted);
+}
+.toolbar .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.toolbar .btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+.toolbar .btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-contrast);
+}
+.toolbar .btn.ghost {
+  background: transparent;
+  border-color: transparent;
   color: var(--text-muted);
 }
+.toolbar .btn.ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text-bright);
+}
+
+/* 次工具栏操作 chip：对齐原型 .action-chip */
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s ease;
+}
+.action-chip:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-bright);
+}
+.action-chip .chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.scope-chip {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+
+/* 分段控制组：对齐原型 .seg-group / .seg-btn（当前用于导入按钮组；匹配粒度控件已按 BIZ-018 移除） */
+.seg-group {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  height: 28px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.seg-btn:hover:not(:disabled) {
+  color: var(--text-bright);
+}
+/* 主操作段（导入文件）：保留主色强调 */
+.seg-btn.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+.seg-btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: var(--accent-contrast);
+}
+.seg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .importing-hint {
   font-size: 11.5px;
-  color: var(--accent);
-}
-.scope-badge {
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: var(--accent-soft);
   color: var(--accent);
 }
 /* 未实现功能：禁用按钮，说明放在外层元素以便仍可显示提示 */
 .disabled-slot {
   display: inline-flex;
-}
-.disabled-slot .btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .writeback-btn {
   position: relative;
@@ -273,7 +387,7 @@ const handleRollback = () => {
   padding: 0 4px;
   border-radius: 8px;
   background: var(--state-edited);
-  color: #1b1c1e;
+  color: var(--accent-contrast);
   font-size: 10px;
   font-weight: 700;
   margin-left: 4px;

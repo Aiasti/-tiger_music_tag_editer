@@ -23,7 +23,6 @@ const initialColumns: ColumnDefinition[] = [
   { key: 'composer', label: '作曲', minWidth: 95, width: 110, visible: true, editable: true },
   { key: 'lyricist', label: '作词', minWidth: 95, width: 110, visible: true, editable: true },
   { key: 'arranger', label: '编曲', minWidth: 95, width: 110, visible: true, editable: true },
-  { key: 'lyricsBtn', label: '内嵌歌词', minWidth: 100, width: 110, visible: true, editable: false },
   { key: 'comment', label: '注释', minWidth: 130, width: 150, visible: true, editable: true },
   { key: 'duration', label: '时长', minWidth: 60, width: 70, visible: true, editable: false }
 ]
@@ -38,6 +37,8 @@ const columns = ref<ColumnDefinition[]>(initialColumns)
 const selectedTrackId = ref<number | null>(null)
 /** 完整选区（Ctrl 点选切换、Shift 连选）；批量类操作以它为作用域（BIZ-015） */
 const selectedTrackIds = ref<number[]>([])
+/** 待写回封面（BIZ-020）：trackId → data URL；空串表示已标记移除封面。仅内存编辑态。 */
+const pendingCovers = ref<Record<number, string>>({})
 
 // 行内编辑状态
 const editingCell = ref<{
@@ -83,6 +84,14 @@ export function useWorkspace() {
     // 选区跟随数据收敛：剔除已不存在（如被移出工作区）的 id
     const existing = new Set(tracks.value.map((t) => t.id))
     selectedTrackIds.value = selectedTrackIds.value.filter((id) => existing.has(id))
+    // 待写回封面同样剔除已不存在的曲目（BIZ-020）
+    const nextCovers: Record<number, string> = {}
+    for (const [key, value] of Object.entries(pendingCovers.value)) {
+      if (existing.has(Number(key))) {
+        nextCovers[Number(key)] = value
+      }
+    }
+    pendingCovers.value = nextCovers
     if (selectedTrackId.value !== null && !existing.has(selectedTrackId.value)) {
       selectedTrackId.value = null
     }
@@ -289,6 +298,14 @@ export function useWorkspace() {
     }
   }
 
+  /** 设置待写回封面（BIZ-020）：dataUrl 为空串表示标记移除封面；仅改内存编辑态。 */
+  const setPendingCover = (trackId: number, dataUrl: string) => {
+    const track = tracks.value.find((t) => t.id === trackId)
+    if (!track || track.status === 'failed') return
+    pendingCovers.value = { ...pendingCovers.value, [trackId]: dataUrl }
+    track.status = 'edited'
+  }
+
   // 更新内嵌歌词（进入内存编辑态，严禁直接落盘）
   const applyLyricsToTrack = (trackId: number, lyricsText: string) => {
     const track = tracks.value.find((t) => t.id === trackId)
@@ -330,12 +347,41 @@ export function useWorkspace() {
     })
   }
 
+  /**
+   * 应用在线候选标签（FR-5）：应用后标记「已匹配」（待写回落盘）。
+   * 不传 `trackIds` 时作用于当前选区（未选中则工作区全部可编辑曲目，BIZ-015）。
+   */
+  const applyMatchedTags = (fields: Partial<TrackTagData>, trackIds?: number[]) => {
+    const list =
+      trackIds === undefined
+        ? operationScope.value
+        : tracks.value.filter((t) => trackIds.includes(t.id))
+    list.forEach((t) => {
+      if (t.status === 'failed') return
+      let modified = false
+      for (const [k, v] of Object.entries(fields)) {
+        if (v !== undefined && v !== '') {
+          t.tags[k as keyof TrackTagData] = v as string
+          modified = true
+        }
+      }
+      if (modified) {
+        t.status = 'matched'
+      }
+    })
+  }
+
   // 提交前回滚至首次快照 (BIZ-006 / FR-8)
   const rollbackTrack = (trackId: number) => {
     const track = tracks.value.find((t) => t.id === trackId)
     if (track && track.status !== 'failed') {
       track.tags = JSON.parse(JSON.stringify(track.initialSnapshot))
       track.status = 'saved'
+    }
+    if (pendingCovers.value[trackId] !== undefined) {
+      const next = { ...pendingCovers.value }
+      delete next[trackId]
+      pendingCovers.value = next
     }
   }
 
@@ -348,6 +394,8 @@ export function useWorkspace() {
         t.status = 'saved'
       }
     })
+    // 封面同属媒体字段编辑态，回滚一并丢弃待写回值（BIZ-020 / BIZ-021）
+    pendingCovers.value = {}
   }
 
   // 确认写回落盘（将当前编辑值置为已保存）
@@ -368,6 +416,7 @@ export function useWorkspace() {
     columns,
     selectedTrackId,
     selectedTrackIds,
+    pendingCovers,
     selectedTrack,
     selectedTracks,
     operationScope,
@@ -387,8 +436,10 @@ export function useWorkspace() {
     cancelInlineEdit,
     navigateInlineEdit,
     applyLyricsToTrack,
+    setPendingCover,
     applyBatchLyrics,
     applyBatchTags,
+    applyMatchedTags,
     batchUpdateTags,
     batchApplyLyrics,
     renumberTracks,

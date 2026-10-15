@@ -20,7 +20,7 @@ const {
   navigateInlineEdit
 } = useWorkspace()
 
-const { openModal, activeModal } = useModals()
+const { activeModal } = useModals()
 
 /**
  * 行内输入框引用：模板中它位于 v-for 内，Vue 会把同名 ref 收集为数组，
@@ -46,7 +46,7 @@ const handleCellClick = (trackId: number, event: MouseEvent) => {
 // 双击单元格激活行内编辑 (BIZ-011)
 const handleCellDblClick = (track: TrackItem, field: string) => {
   if (track.status === 'failed') return
-  if (field === 'id' || field === 'status' || field === 'duration' || field === 'lyricsBtn') return
+  if (field === 'id' || field === 'status' || field === 'duration') return
 
   const tagField = field as EditableTagField
   inlineEditValue.value = track.tags[tagField] || ''
@@ -85,13 +85,6 @@ const handleInputTab = (e: KeyboardEvent) => {
       }
     }
   })
-}
-
-// 打开单曲歌词独立编辑弹窗 (BIZ-012)
-const handleOpenLyricsEdit = (trackId: number, e: MouseEvent) => {
-  e.stopPropagation()
-  selectTrack(trackId)
-  openModal('lyrics-edit')
 }
 
 // 列宽拖拽调整（BIZ-015）
@@ -480,21 +473,7 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 14. 内嵌歌词独立按钮 (BIZ-012 状态感知) -->
-            <td class="col-lyrics-btn" @click.stop>
-              <button
-                v-if="track.status !== 'failed'"
-                class="btn-lyric-cell"
-                :class="{ 'has-content': !!(track.tags.lyrics && track.tags.lyrics.trim().length > 0) }"
-                :title="track.tags.lyrics ? '点击查看与编辑内嵌歌词' : '本地无歌词，点击手动添加'"
-                @click="handleOpenLyricsEdit(track.id, $event)"
-              >
-                {{ track.tags.lyrics && track.tags.lyrics.trim().length > 0 ? '📝 编辑歌词' : '+ 添加歌词' }}
-              </button>
-              <span v-else class="faint">—</span>
-            </td>
-
-            <!-- 15. 注释 -->
+            <!-- 14. 注释 -->
             <td
               class="col-comment editable-cell"
               @dblclick="handleCellDblClick(track, 'comment')"
@@ -514,7 +493,7 @@ onUnmounted(() => {
               </span>
             </td>
 
-            <!-- 16. 时长 -->
+            <!-- 15. 时长 -->
             <td class="col-duration align-right">
               <span class="mono-num">{{ track.duration }}</span>
             </td>
@@ -709,30 +688,5 @@ tbody tr.drag-over {
   font-size: 12px;
   outline: none;
   box-shadow: 0 0 0 2px var(--accent-soft);
-}
-
-/* 内嵌歌词状态感知按钮 (BIZ-012) */
-.btn-lyric-cell {
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  cursor: pointer;
-  border: 1px dashed var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  transition: all 0.15s ease;
-}
-
-.btn-lyric-cell:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.btn-lyric-cell.has-content {
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 500;
 }
 </style>

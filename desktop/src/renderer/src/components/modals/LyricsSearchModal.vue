@@ -1,229 +1,387 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
+import { useModals } from '../../composables/useModals'
 import type { LyricsCandidateItem } from '../../types'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { selectedTracks, applyLyricsToTrack, batchApplyLyrics } = useWorkspace()
+const SKIP_ID = 'skip'
 
-const activeSource = ref<'all' | 'netease' | 'qq' | 'lrcdb' | 'kugou'>('all')
-const searchKeyword = ref('')
-const selectedCandidateId = ref<string>('c1')
+const { openModal } = useModals()
+const { operationScope, selectedTracks, applyLyricsToTrack, batchApplyLyrics } = useWorkspace()
 
-const candidates = ref<LyricsCandidateItem[]>([
-  {
-    id: 'c1',
-    source: '网易云音乐',
-    title: 'Hotel California (Live MTV 1994)',
-    artist: 'Eagles',
-    album: 'Hell Freezes Over',
-    duration: '07:12',
-    hasTimeline: true,
-    confidence: '98%',
-    preview: `[00:00.00]Hotel California (Live) - Eagles\n[00:30.25]On a dark desert highway, cool wind in my hair\n[00:37.40]Warm smell of colitas, rising up through the air\n[00:44.80]Up ahead in the distance, I saw a shimmering light\n[00:51.60]My head grew heavy and my sight grew dim\n[00:55.20]I had to stop for the night`
-  },
-  {
-    id: 'c2',
-    source: 'QQ音乐',
-    title: 'Hotel California (2013 Remaster)',
-    artist: 'Eagles',
-    album: 'Hotel California',
-    duration: '06:30',
-    hasTimeline: true,
-    confidence: '91%',
-    preview: `[00:00.00]Hotel California - Eagles\n[00:20.10]On a dark desert highway, cool wind in my hair\n[00:26.50]Warm smell of colitas, rising up through the air\n[00:33.20]Up ahead in the distance, I saw a shimmering light`
-  },
-  {
-    id: 'c3',
-    source: 'LRCDB',
-    title: 'Hotel California (Acoustic)',
-    artist: 'Eagles',
-    album: 'Greatest Hits',
-    duration: '06:45',
-    hasTimeline: true,
-    confidence: '82%',
-    preview: `[00:00.00]Hotel California\n[00:15.00](Intro Instrumental)\n[00:32.00]On a dark desert highway`
-  },
-  {
-    id: 'skip',
-    source: '跳过',
-    title: '不应用（跳过此曲目）',
-    artist: '—',
-    album: '—',
-    duration: '—',
-    hasTimeline: false,
-    confidence: '—',
-    preview: ''
-  }
+/** 批量歌词源（启停 + 优先级展示），与设置弹窗的歌词源配置保持一致（BIZ-012） */
+const sources = ref([
+  { key: 'netease', label: '网易云音乐 (Netease)', latency: '28ms', enabled: true },
+  { key: 'qqmusic', label: 'QQ 音乐 (QQMusic)', latency: '42ms', enabled: true },
+  { key: 'apple', label: 'Apple Music', latency: '65ms', enabled: true },
+  { key: 'lastfm', label: 'Last.fm (纯文本)', latency: '110ms', enabled: false }
 ])
 
-const currentTrack = computed(() => selectedTracks.value[0])
-const currentLyrics = computed(() => currentTrack.value?.tags.lyrics || '')
+const searchKeyword = ref('')
+const diffMode = ref<'split' | 'candidate'>('split')
+const selectedCandidateId = ref<string>('netease')
+/** 已执行过检索的曲目 id（用于「待匹配曲目状态」的检索态表达） */
+const searchedIds = ref<number[]>([])
 
-const selectedCandidate = computed(() => {
-  return candidates.value.find((c) => c.id === selectedCandidateId.value)
+/** 批量作用范围：当前选区，未选中则全部可编辑曲目（BIZ-015 / BIZ-019） */
+const scopeTracks = computed(() => operationScope.value)
+const scopeIsSelection = computed(() => selectedTracks.value.length > 0)
+
+const activeTrackId = ref<number | null>(null)
+
+watch(
+  scopeTracks,
+  (list) => {
+    if (list.length === 0) {
+      activeTrackId.value = null
+      return
+    }
+    if (activeTrackId.value === null || !list.some((t) => t.id === activeTrackId.value)) {
+      activeTrackId.value = list[0].id
+    }
+  },
+  { immediate: true }
+)
+
+const activeTrack = computed(
+  () => scopeTracks.value.find((t) => t.id === activeTrackId.value) || scopeTracks.value[0] || null
+)
+const activeTitle = computed(
+  () => activeTrack.value?.tags.title || activeTrack.value?.filename || '当前曲目'
+)
+const activeArtist = computed(() => activeTrack.value?.tags.artist || '未知艺术家')
+const currentLyrics = computed(() => activeTrack.value?.tags.lyrics || '')
+
+const buildPreview = (header: string, lines: string[]): string =>
+  [`[00:00.00]${header}`, ...lines].join('\n')
+
+/** 多源歌词候选（当前为原型模拟数据，后端多源接入属 S4 范围） */
+const candidates = computed<LyricsCandidateItem[]>(() => {
+  const header = `${activeArtist.value} - ${activeTitle.value}`
+  return [
+    {
+      id: 'netease',
+      source: '网易云音乐 (Netease)',
+      title: `${activeTitle.value} (Live 2026)`,
+      artist: activeArtist.value,
+      album: 'Live Album',
+      duration: '07:12',
+      hasTimeline: true,
+      confidence: '98%',
+      preview: buildPreview(header, [
+        '[00:15.20]The spotlight turns on the stage tonight',
+        '[00:19.80]Feel the heartbeat, feel the burning light',
+        '[00:24.40]Electric roar, echoing through the hall',
+        '[00:29.10]Together we stand, we will never fall'
+      ])
+    },
+    {
+      id: 'qqmusic',
+      source: 'QQ 音乐 (QQMusic)',
+      title: activeTitle.value,
+      artist: activeArtist.value,
+      album: 'Live Album',
+      duration: '07:05',
+      hasTimeline: true,
+      confidence: '92%',
+      preview: buildPreview(header, [
+        '[00:18.00]The spotlight turns on the stage tonight',
+        '[00:22.50]Feel the heartbeat, feel the burning light',
+        '[00:27.10]Electric roar, echoing through the hall'
+      ])
+    },
+    {
+      id: 'apple',
+      source: 'Apple Music',
+      title: `${activeTitle.value} (Live)`,
+      artist: activeArtist.value,
+      album: 'Live Album',
+      duration: '07:08',
+      hasTimeline: true,
+      confidence: '88%',
+      preview: buildPreview(header, [
+        '[00:16.40]The spotlight turns on the stage tonight',
+        '[00:21.00]Feel the heartbeat, feel the burning light'
+      ])
+    },
+    {
+      id: SKIP_ID,
+      source: '跳过',
+      title: '不应用（跳过此曲目）',
+      artist: '—',
+      album: '—',
+      duration: '—',
+      hasTimeline: false,
+      confidence: '—',
+      preview: ''
+    }
+  ]
 })
 
-const isSkipSelected = computed(() => selectedCandidateId.value === 'skip')
+/** 候选数量只统计真实在线候选，不含「不应用」（BIZ-012） */
+const candidateCount = computed(
+  () => candidates.value.filter((c) => c.id !== SKIP_ID).length
+)
+
+const selectedCandidate = computed(() =>
+  candidates.value.find((c) => c.id === selectedCandidateId.value)
+)
+const isSkipSelected = computed(() => selectedCandidateId.value === SKIP_ID)
+
+/** 曲目在多源检索后的状态表达（原型模拟数据，后端接入前保持占位） */
+const trackStatusText = (trackId: number): string => {
+  if (!searchedIds.value.includes(trackId)) {
+    return '待检索'
+  }
+  const track = scopeTracks.value.find((t) => t.id === trackId)
+  return track?.tags.lyrics ? '✓ 命中多源候选' : `✓ 命中 ${candidateCount.value} 个源`
+}
+
+const switchTrack = (trackId: number) => {
+  activeTrackId.value = trackId
+}
+
+const searchCurrent = () => {
+  if (activeTrackId.value !== null && !searchedIds.value.includes(activeTrackId.value)) {
+    searchedIds.value = [...searchedIds.value, activeTrackId.value]
+  }
+}
+
+const searchBatch = () => {
+  searchedIds.value = scopeTracks.value.map((t) => t.id)
+}
 
 const handleApplySingle = () => {
   if (isSkipSelected.value) {
-    // 显式跳过，不修改
     emit('close')
     return
   }
-  if (currentTrack.value && selectedCandidate.value) {
-    applyLyricsToTrack(currentTrack.value.id, selectedCandidate.value.preview)
+  if (activeTrackId.value !== null && selectedCandidate.value) {
+    applyLyricsToTrack(activeTrackId.value, selectedCandidate.value.preview)
   }
   emit('close')
 }
 
+/** 一键批量应用全部高匹配歌词：装配至当前选区（未选则全部），仅进内存编辑态 */
 const handleApplyBatch = () => {
   if (isSkipSelected.value) {
     emit('close')
     return
   }
-  if (selectedCandidate.value) {
-    batchApplyLyrics(selectedCandidate.value.preview)
+  const lyricsText = selectedCandidate.value?.preview
+  if (lyricsText !== undefined) {
+    batchApplyLyrics(lyricsText)
   }
   emit('close')
 }
 </script>
 
 <template>
-  <ModalContainer title="🎵 多源歌词检索与智能匹配 (BIZ-012)" max-width="960px" @close="emit('close')">
-    <div class="lyrics-search-modal">
-      <!-- 顶部搜索工具栏 -->
-      <div class="search-bar-row">
-        <div class="source-filter-tabs">
-          <button class="source-tab" :class="{ active: activeSource === 'all' }" @click="activeSource = 'all'">全部源</button>
-          <button class="source-tab" :class="{ active: activeSource === 'netease' }" @click="activeSource = 'netease'">网易云音乐</button>
-          <button class="source-tab" :class="{ active: activeSource === 'qq' }" @click="activeSource = 'qq'">QQ音乐</button>
-          <button class="source-tab" :class="{ active: activeSource === 'lrcdb' }" @click="activeSource = 'lrcdb'">LRCDB</button>
-          <button class="source-tab" :class="{ active: activeSource === 'kugou' }" @click="activeSource = 'kugou'">酷狗音乐</button>
-        </div>
-        <div class="search-input-group">
-          <input
-            v-model="searchKeyword"
-            type="text"
-            class="input search-kw-input"
-            :placeholder="`当前曲目：${currentTrack?.tags.title || ''} - ${currentTrack?.tags.artist || ''}`"
-          />
-          <button class="btn primary search-btn">重新搜索</button>
-        </div>
+  <ModalContainer
+    title="🎵 批量在线歌词搜索与匹配 (FR-6 / BIZ-012)"
+    max-width="980px"
+    @close="emit('close')"
+  >
+    <div class="lyrics-batch-modal">
+      <!-- 作用范围提示 -->
+      <div class="scope-strip">
+        <span>
+          作用于
+          <strong>{{ scopeIsSelection ? '当前选区' : '工作区全部可编辑曲目' }}</strong>
+          · 共 <strong>{{ scopeTracks.length }}</strong> 首
+        </span>
+        <span class="scope-tip">批量应用仅装配至内存编辑态，需点击「💾 确认写回」才落盘</span>
       </div>
 
-      <!-- 主体分栏：左候选列表，右 Diff 对比 -->
-      <div class="lyrics-layout">
-        <div class="candidate-pane">
-          <div class="pane-title">候选歌词 (共 {{ candidates.length }} 条候选)</div>
-          <div class="cards-scroller">
-            <div
-              v-for="cand in candidates"
-              :key="cand.id"
-              class="lyrics-card"
-              :class="{
-                selected: selectedCandidateId === cand.id,
-                'skip-card': cand.id === 'skip'
-              }"
-              @click="selectedCandidateId = cand.id"
+      <!-- 歌词源启停与优先级 -->
+      <div class="sources-bar">
+        <div class="sources-left">
+          <strong class="sources-label">歌词检索来源：</strong>
+          <div class="source-pill-group">
+            <label
+              v-for="src in sources"
+              :key="src.key"
+              class="source-pill"
+              :class="{ active: src.enabled }"
             >
-              <template v-if="cand.id === 'skip'">
-                <div class="skip-header">
-                  <span class="skip-icon">🚫</span>
-                  <strong>{{ cand.title }}</strong>
-                </div>
-                <div class="skip-desc">
-                  保留曲目当前本地歌词状态不变，不执行装配与覆盖。
-                </div>
-              </template>
-              <template v-else>
-                <div class="card-meta-top">
-                  <span class="tag-source">{{ cand.source }}</span>
-                  <span class="confidence-tag">{{ cand.confidence }} 匹配</span>
-                </div>
-                <div class="card-title">{{ cand.title }}</div>
-                <div class="card-artist">{{ cand.artist }} · {{ cand.album }}</div>
-                <div class="card-footer-info">
-                  <span>时长：{{ cand.duration }}</span>
-                  <span class="badge-lrc" :class="{ green: cand.hasTimeline }">
-                    {{ cand.hasTimeline ? '✓ 带时间轴 LRC' : '纯文本' }}
-                  </span>
-                </div>
-              </template>
+              <input v-model="src.enabled" type="checkbox" />
+              <span class="source-dot"></span>
+              <span>{{ src.label }}</span>
+              <span class="source-latency">{{ src.latency }}</span>
+            </label>
+          </div>
+        </div>
+        <button
+          class="btn ghost sm-btn"
+          title="前往设置面板调整歌词源检索顺序与超时"
+          @click="openModal('settings')"
+        >
+          ⚙️ 调整优先级与超时
+        </button>
+      </div>
+
+      <!-- 搜索控制栏 -->
+      <div class="search-row">
+        <input
+          v-model="searchKeyword"
+          type="text"
+          class="input search-kw"
+          :placeholder="`输入歌曲名、艺术家或专辑搜索…（当前：${activeArtist} - ${activeTitle}）`"
+        />
+        <button class="btn primary" @click="searchCurrent">🔍 检索当前曲目</button>
+        <button class="btn" @click="searchBatch">⚡ 批量检索全部 {{ scopeTracks.length }} 首</button>
+      </div>
+
+      <!-- 左右分栏：曲目队列与候选 / 歌词对照 -->
+      <div class="batch-grid">
+        <div class="left-pane">
+          <div class="pane-block">
+            <div class="pane-label">
+              <span>待匹配曲目状态 (点击切换曲目)：</span>
+              <span class="pane-summary">共 {{ scopeTracks.length }} 首</span>
             </div>
+            <div class="track-list">
+              <div
+                v-for="track in scopeTracks"
+                :key="track.id"
+                class="track-row"
+                :class="{ active: track.id === activeTrackId }"
+                @click="switchTrack(track.id)"
+              >
+                <span class="track-name">#{{ track.id }} {{ track.tags.title || track.filename }}</span>
+                <span
+                  class="track-status"
+                  :class="{
+                    'is-matched': searchedIds.includes(track.id),
+                    'is-idle': !searchedIds.includes(track.id)
+                  }"
+                >
+                  {{ trackStatusText(track.id) }}
+                </span>
+              </div>
+              <div v-if="scopeTracks.length === 0" class="empty-hint">工作区暂无可操作曲目</div>
+            </div>
+          </div>
+
+          <div class="pane-block">
+            <div class="pane-label">
+              <span>当前曲目多源歌词候选：</span>
+              <span class="pane-summary">按来源优先级排序</span>
+            </div>
+            <div class="candidate-list">
+              <div
+                v-for="cand in candidates"
+                :key="cand.id"
+                class="candidate-card"
+                :class="{
+                  selected: selectedCandidateId === cand.id,
+                  'skip-card': cand.id === SKIP_ID
+                }"
+                @click="selectedCandidateId = cand.id"
+              >
+                <template v-if="cand.id === SKIP_ID">
+                  <div class="cand-top">
+                    <span class="cand-source skip">🚫 {{ cand.title }}</span>
+                    <span class="cand-skip-tag">跳过装配</span>
+                  </div>
+                  <div class="cand-sub">保持本地现有歌词不变，不将在线候选歌词装配至本曲目</div>
+                </template>
+                <template v-else>
+                  <div class="cand-top">
+                    <span class="cand-source">{{ cand.source }}</span>
+                    <span class="cand-confidence">{{ cand.confidence }} 匹配</span>
+                  </div>
+                  <div class="cand-title">{{ cand.title }}</div>
+                  <div class="cand-sub">{{ cand.artist }} · {{ cand.album }}</div>
+                  <div class="cand-tags">
+                    <span class="tag" :class="{ green: cand.hasTimeline }">
+                      {{ cand.hasTimeline ? '⏱️ LRC 时间轴' : '纯文本' }}
+                    </span>
+                    <span class="tag">{{ cand.preview.split('\n').length }} 行</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <div class="candidate-count">候选歌词（共 {{ candidateCount }} 条候选）</div>
           </div>
         </div>
 
-        <div class="preview-diff-pane">
-          <div class="pane-title">
-            <span>歌词对照对比视窗 (Diff)</span>
-            <span v-if="isSkipSelected" class="status-tip skip">已选择「跳过」此曲目</span>
-            <span v-else class="status-tip">双击行可在后续编辑器中精修</span>
+        <div class="right-pane">
+          <div class="pane-label">
+            <span>歌词对照与时间轴校验：</span>
+            <div class="diff-mode-group">
+              <button
+                class="btn ghost sm-btn"
+                :class="{ active: diffMode === 'split' }"
+                @click="diffMode = 'split'"
+              >
+                左右对比
+              </button>
+              <button
+                class="btn ghost sm-btn"
+                :class="{ active: diffMode === 'candidate' }"
+                @click="diffMode = 'candidate'"
+              >
+                仅看候选
+              </button>
+            </div>
           </div>
 
-          <div v-if="isSkipSelected" class="skip-placeholder-box">
-            <div class="skip-big-icon">🚫</div>
+          <div v-if="isSkipSelected" class="skip-placeholder">
+            <div class="skip-big">🚫</div>
             <div class="skip-headline">已选择「不应用（跳过此曲目）」</div>
-            <p class="skip-subtext">
-              点击下方「应用至当前曲目」时将跳过此曲目，完整保留该曲目当前的本地内嵌歌词（无论为空还是已有歌词），不给曲目打上脏标记。
+            <p class="skip-sub">
+              应用时将跳过该曲目，完整保留其当前本地内嵌歌词，不打脏标记。
             </p>
           </div>
 
-          <div v-else class="diff-split-container">
-            <!-- 左栏：本地现有歌词 -->
-            <div class="diff-side local">
-              <div class="side-header">
-                <span>本地原始歌词</span>
-                <span class="byte-badge">{{ currentLyrics ? `${currentLyrics.length} 字符` : '无内嵌歌词' }}</span>
+          <div v-else class="diff-viewer" :class="{ 'candidate-only': diffMode === 'candidate' }">
+            <div v-if="diffMode === 'split'" class="diff-col local">
+              <div class="diff-col-header">
+                <span>📁 当前曲目本地歌词</span>
+                <span class="diff-badge">{{ currentLyrics ? `${currentLyrics.split('\n').length} 行` : '无内嵌歌词' }}</span>
               </div>
-              <div class="lyrics-text-box">
+              <div class="diff-content">
                 <pre v-if="currentLyrics">{{ currentLyrics }}</pre>
-                <div v-else class="empty-lyrics-tip">
-                  （当前音轨文件无内嵌歌词）
-                </div>
+                <div v-else class="empty-tip">（当前音轨文件无内嵌歌词）</div>
               </div>
             </div>
 
-            <!-- 右栏：待装配候选歌词 -->
-            <div class="diff-side incoming">
-              <div class="side-header">
-                <span>{{ selectedCandidate?.source }} 候选歌词</span>
-                <span class="byte-badge highlight">{{ selectedCandidate?.preview.length || 0 }} 字符</span>
+            <div class="diff-col candidate">
+              <div class="diff-col-header">
+                <span class="accent">✨ 候选 {{ selectedCandidate?.source }} 歌词</span>
+                <span class="diff-badge ok">{{ selectedCandidate?.preview.split('\n').length || 0 }} 行</span>
               </div>
-              <div class="lyrics-text-box">
+              <div class="diff-content">
                 <pre>{{ selectedCandidate?.preview }}</pre>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <div class="persist-alert">
+        🛡️ <strong>持久化隔离 (FR-4 / FR-6 / BIZ-012)</strong>：应用在线候选歌词仅暂存至内存编辑态并标记为「已编辑」，绝不直接写入磁盘；必须在主工具栏点击「💾 确认写回」后才最终落盘。
+      </div>
     </div>
 
     <template #footer>
       <div class="modal-footer-between">
         <span class="footer-tip">
-          * 歌词将装配至当前工作区内存编辑态，需点击「💾 确认写回」后才持久化落盘。
+          当前选定候选：<strong>{{ selectedCandidate?.source }}</strong>（可点击左侧卡片更换）
         </span>
         <div class="footer-btn-group">
           <button class="btn" @click="emit('close')">取消</button>
-          <button
-            class="btn"
-            :disabled="isSkipSelected"
-            title="将当前选中的歌词匹配方案批量装配到所有已勾选的曲目中"
-            @click="handleApplyBatch"
-          >
-            批量应用至全部选中 ({{ selectedTracks.length }})
+          <button class="btn" :disabled="isSkipSelected" @click="handleApplySingle">
+            应用至当前曲目 (待写回)
           </button>
-          <button
-            class="btn primary"
-            @click="handleApplySingle"
-          >
-            {{ isSkipSelected ? '确认跳过当前曲目' : '应用至当前曲目' }}
+          <button class="btn primary" :disabled="isSkipSelected" @click="handleApplyBatch">
+            ✨ 一键批量应用全部高匹配歌词 (≥85%)
           </button>
         </div>
       </div>
@@ -232,163 +390,249 @@ const handleApplyBatch = () => {
 </template>
 
 <style scoped>
-.lyrics-search-modal {
+.lyrics-batch-modal {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
-.search-bar-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs) var(--space-sm);
-}
-
-.source-filter-tabs {
-  display: flex;
-  gap: 4px;
-}
-
-.source-tab {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 4px 10px;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.source-tab.active {
-  background: var(--bg-hover);
-  border-color: var(--border-subtle);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.search-input-group {
-  display: flex;
-  gap: var(--space-xs);
-}
-
-.search-kw-input {
-  flex: 1;
-}
-
-.lyrics-layout {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: var(--space-md);
-  height: 440px;
-}
-
-.pane-title {
+.scope-strip {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: var(--font-xs);
-  font-weight: 600;
-  text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: var(--space-xs);
+  background: var(--bg-hover);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+}
+.scope-strip strong {
+  color: var(--text-bright);
+}
+.scope-tip {
+  color: var(--text-muted);
 }
 
-.status-tip {
+.sources-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.sources-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sources-label {
+  font-size: var(--font-xs);
+  color: var(--text-bright);
+}
+.source-pill-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-surface);
   font-size: var(--font-xs);
   color: var(--text-muted);
-}
-
-.status-tip.skip {
-  color: var(--warning);
-  font-weight: 600;
-}
-
-.cards-scroller {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: calc(100% - 24px);
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.lyrics-card {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 10px;
   cursor: pointer;
-  background: var(--bg-surface);
-  transition: all 0.15s ease;
+  user-select: none;
 }
-
-.lyrics-card:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.lyrics-card.selected {
+.source-pill.active {
   border-color: var(--accent);
-  background: var(--bg-active);
+  color: var(--text-main);
 }
-
-.lyrics-card.skip-card {
-  border-style: dashed;
-  background: var(--bg-hover);
+.source-pill input {
+  display: none;
 }
-
-.lyrics-card.skip-card.selected {
-  border-color: var(--warning);
-  background: var(--warning-dim);
+.source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
 }
-
-.skip-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--warning);
-  font-size: var(--font-sm);
+.source-pill.active .source-dot {
+  background: var(--success);
 }
-
-.skip-desc {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.4;
-}
-
-.card-meta-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--font-xs);
-  margin-bottom: 4px;
-}
-
-.tag-source {
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.confidence-tag {
-  color: var(--success);
+.source-latency {
+  color: var(--text-faint);
+  font-size: 10px;
   font-family: var(--font-mono);
 }
 
-.card-title {
-  font-size: var(--font-sm);
+.sm-btn {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+.sm-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.search-row {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+.search-kw {
+  flex: 1;
+}
+
+.batch-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: var(--space-md);
+  height: 420px;
+}
+
+.left-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: 0;
+}
+.pane-block {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.pane-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-xs);
   font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.pane-summary {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.track-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+.track-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: var(--font-xs);
   color: var(--text-main);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.track-row:last-child {
+  border-bottom: none;
+}
+.track-row:hover {
+  background: var(--bg-hover);
+}
+.track-row.active {
+  background: var(--bg-active);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.track-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.track-status.is-matched {
+  color: var(--state-matched);
+  white-space: nowrap;
+}
+.track-status.is-idle {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.empty-hint {
+  padding: var(--space-md);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
 
-.card-artist {
+.candidate-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+.candidate-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.candidate-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.candidate-card.selected {
+  border-color: var(--accent);
+  background: var(--bg-active);
+}
+.candidate-card.skip-card {
+  border-style: dashed;
+}
+.candidate-card.skip-card.selected {
+  border-color: var(--warning);
+  background: var(--warning-dim);
+}
+.cand-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-xs);
+}
+.cand-source {
+  font-weight: 600;
+  color: var(--accent);
+}
+.cand-source.skip {
+  color: var(--warning);
+}
+.cand-skip-tag {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.cand-confidence {
+  color: var(--success);
+  font-family: var(--font-mono);
+}
+.cand-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-main);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cand-sub {
   font-size: var(--font-xs);
   color: var(--text-muted);
   margin-top: 2px;
@@ -396,35 +640,106 @@ const handleApplyBatch = () => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.card-footer-info {
+.cand-tags {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 4px;
 }
-
-.badge-lrc {
+.tag {
+  font-size: 10px;
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   background: var(--bg-hover);
-  font-size: 10px;
+  color: var(--text-muted);
 }
-
-.badge-lrc.green {
+.tag.green {
   color: var(--success);
-  background: var(--success-dim);
+}
+.candidate-count {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  text-align: right;
 }
 
-.preview-diff-pane {
+.right-pane {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
+}
+.diff-mode-group {
+  display: flex;
+  gap: 6px;
 }
 
-.skip-placeholder-box {
+.diff-viewer {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.diff-viewer.candidate-only {
+  grid-template-columns: 1fr;
+}
+.diff-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.diff-col.local {
+  border-right: 1px solid var(--border-subtle);
+}
+.diff-col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.diff-col-header .accent {
+  color: var(--accent);
+}
+.diff-badge {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.diff-badge.ok {
+  color: var(--success);
+}
+.diff-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+  line-height: 1.6;
+}
+.diff-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-main);
+}
+.empty-tip {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: var(--space-md);
+}
+
+.skip-placeholder {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -436,95 +751,35 @@ const handleApplyBatch = () => {
   padding: var(--space-xl);
   text-align: center;
 }
-
-.skip-big-icon {
-  font-size: 36px;
+.skip-big {
+  font-size: 34px;
   margin-bottom: 8px;
 }
-
 .skip-headline {
   font-size: var(--font-md);
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: 8px;
 }
-
-.skip-subtext {
+.skip-sub {
+  margin: 0;
   font-size: var(--font-sm);
   color: var(--text-muted);
   max-width: 420px;
   line-height: 1.5;
-  margin: 0;
 }
 
-.diff-split-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-xs);
-  flex: 1;
+.persist-alert {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--info-dim);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  overflow: hidden;
-}
-
-.diff-side {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.diff-side.local {
-  border-right: 1px solid var(--border-subtle);
-}
-
-.side-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 6px 12px;
-  background: var(--bg-hover);
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--font-xs);
-  font-weight: 600;
-  color: var(--text-muted);
+  line-height: 1.5;
 }
-
-.byte-badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-muted);
-}
-
-.byte-badge.highlight {
-  background: var(--accent-dim);
-  color: var(--accent);
-}
-
-.lyrics-text-box {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-  font-family: var(--font-mono);
-  font-size: var(--font-xs);
-  line-height: 1.6;
-}
-
-.lyrics-text-box pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
+.persist-alert strong {
   color: var(--text-main);
-}
-
-.empty-lyrics-tip {
-  color: var(--text-muted);
-  font-style: italic;
-  padding: var(--space-md);
-  text-align: center;
 }
 
 .modal-footer-between {
@@ -532,13 +787,15 @@ const handleApplyBatch = () => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: var(--space-md);
 }
-
 .footer-tip {
   font-size: var(--font-xs);
   color: var(--text-muted);
 }
-
+.footer-tip strong {
+  color: var(--accent);
+}
 .footer-btn-group {
   display: flex;
   gap: var(--space-xs);
