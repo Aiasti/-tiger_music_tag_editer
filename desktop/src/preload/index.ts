@@ -10,7 +10,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 const api = {
   selectAudioFiles: (): Promise<string[]> => ipcRenderer.invoke('dialog:selectAudioFiles'),
   selectFolder: (): Promise<string[]> => ipcRenderer.invoke('dialog:selectFolder'),
-  getBackendConfig: (): Promise<{ baseUrl: string; token: string }> =>
+  getBackendConfig: (): Promise<{ baseUrl: string; token: string; resetWorkspace: boolean }> =>
     ipcRenderer.invoke('backend:config')
 }
 

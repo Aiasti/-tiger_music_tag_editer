@@ -28,6 +28,7 @@ export interface TrackItem {
   filePath: string
   duration: string
   size: string
+  hasCover: boolean
   status: TrackStatus
   failureReason?: string
   tags: TrackTagData
@@ -40,6 +41,7 @@ export interface ColumnDefinition {
   key: keyof TrackTagData | 'id' | 'filename' | 'status' | 'duration' | 'lyricsBtn'
   label: string
   minWidth: number
+  width: number
   visible: boolean
   editable: boolean
 }

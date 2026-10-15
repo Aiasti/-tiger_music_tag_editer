@@ -5,7 +5,8 @@ import { useWorkspace } from '../../composables/useWorkspace'
 
 const { theme, toggleTheme } = useTheme()
 const { openModal } = useModals()
-const { uncommittedCount, rollbackAll, importFromDialog, importing, skipped } = useWorkspace()
+const { uncommittedCount, rollbackAll, importFromDialog, importing, skipped, selectedTrackIds } =
+  useWorkspace()
 
 const runImport = async (mode: 'files' | 'folder') => {
   await importFromDialog(mode)
@@ -18,10 +19,6 @@ const runImport = async (mode: 'files' | 'folder') => {
 const handleImportFiles = () => runImport('files')
 
 const handleImportFolder = () => runImport('folder')
-
-const handlePlayExternal = () => {
-  openModal('settings')
-}
 
 const handleRollback = () => {
   if (confirm('确定要将工作区所有未写回改动恢复至首次导入快照吗？')) {
@@ -93,11 +90,15 @@ const handleRollback = () => {
 
       <div class="toolbar-divider"></div>
 
-      <div class="toolbar-group">
-        <button class="btn" title="调用外部播放器试听选定曲目 (FR-9)" @click="handlePlayExternal">
-          ▶ 试听
-        </button>
-        <button class="btn" title="打开系统设置与首选项 (FR-9, BIZ-012)" @click="openModal('settings')">
+      <!-- 右侧辅助入口：试听（未实现，禁用并提示）与设置 (FR-9) -->
+      <div class="toolbar-group right">
+        <span
+          class="disabled-slot"
+          title="试听功能尚未实现（计划 S5）：需先在「设置」中配置外部播放器与启动参数"
+        >
+          <button class="btn ghost" disabled>▶ 试听</button>
+        </span>
+        <button class="btn ghost" title="外部播放器路径与请求节流配置 (FR-9)" @click="openModal('settings')">
           ⚙️ 设置
         </button>
       </div>
@@ -107,6 +108,9 @@ const handleRollback = () => {
     <div class="toolbar secondary-toolbar">
       <div class="toolbar-group">
         <span class="label-muted">批量操作:</span>
+        <span class="scope-badge" title="批量类操作（批量修改 / 按范围编号 / 在线匹配 / 歌词搜索）作用于当前选区（BIZ-015）">
+          已选 {{ selectedTrackIds.length }} 首
+        </span>
         <button class="btn sm" title="打开批量标签编辑模态窗 (FR-4)" @click="openModal('batch-edit')">
           📝 批量修改
         </button>
@@ -116,15 +120,6 @@ const handleRollback = () => {
         <button class="btn sm" title="放弃未写回改动，重置至工作区首次导入快照 (FR-8, BIZ-006)" @click="handleRollback">
           ↺ 提交前回滚
         </button>
-      </div>
-
-      <div class="toolbar-group right">
-        <span class="quick-nav-hint">快捷评审通道:</span>
-        <button class="btn sm nav-chip" @click="openModal('online-match')">🌐 在线匹配</button>
-        <button class="btn sm nav-chip" @click="openModal('lyrics-search')">🎵 歌词搜索</button>
-        <button class="btn sm nav-chip" @click="openModal('lyrics-edit')">📝 歌词编辑</button>
-        <button class="btn sm nav-chip" @click="openModal('batch-edit')">批量修改</button>
-        <button class="btn sm nav-chip" @click="openModal('write-confirm')">确认写回</button>
       </div>
     </div>
   </header>
@@ -251,6 +246,21 @@ const handleRollback = () => {
   font-size: 11.5px;
   color: var(--accent);
 }
+.scope-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* 未实现功能：禁用按钮，说明放在外层元素以便仍可显示提示 */
+.disabled-slot {
+  display: inline-flex;
+}
+.disabled-slot .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .writeback-btn {
   position: relative;
 }
@@ -267,19 +277,5 @@ const handleRollback = () => {
   font-size: 10px;
   font-weight: 700;
   margin-left: 4px;
-}
-.quick-nav-hint {
-  font-size: 10.5px;
-  color: var(--text-muted);
-}
-.nav-chip {
-  height: 22px;
-  font-size: 10.5px;
-  padding: 0 6px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-}
-.nav-chip:hover {
-  color: var(--accent);
 }
 </style>

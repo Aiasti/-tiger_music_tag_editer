@@ -1,134 +1,182 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
+import { fetchCoverUrl } from '../../api/client'
+import type { TrackTagData } from '../../types'
 
 const { selectedTrack } = useWorkspace()
 const { openModal } = useModals()
 
+const statusText = computed(() => {
+  switch (selectedTrack.value?.status) {
+    case 'saved':
+      return '已保存（无待提交）'
+    case 'edited':
+      return '已编辑（待提交）'
+    case 'matched':
+      return '已在线匹配'
+    case 'failed':
+      return '读取损坏/失败'
+    default:
+      return '—'
+  }
+})
+
 const hasLyrics = computed(() => {
-  return !!(selectedTrack.value && selectedTrack.value.tags.lyrics && selectedTrack.value.tags.lyrics.trim().length > 0)
+  const lyrics = selectedTrack.value?.tags.lyrics
+  return !!lyrics && lyrics.trim().length > 0
 })
 
 const lyricsLineCount = computed(() => {
-  if (!selectedTrack.value || !selectedTrack.value.tags.lyrics) return 0
-  return selectedTrack.value.tags.lyrics.trim().split('\n').length
+  const lyrics = selectedTrack.value?.tags.lyrics
+  return lyrics ? lyrics.trim().split('\n').length : 0
 })
 
-const handleOpenLyricsEdit = () => {
-  openModal('lyrics-edit')
+/** 当前值 vs 首次读取快照：只列出确实发生变化的字段（BIZ-006）。 */
+const changedFields = computed<{ label: string; current: string; initial: string }[]>(() => {
+  const track = selectedTrack.value
+  if (!track) {
+    return []
+  }
+  const pairs: { key: keyof TrackTagData; label: string }[] = [
+    { key: 'title', label: '标题' },
+    { key: 'artist', label: '艺术家' },
+    { key: 'album', label: '专辑' },
+    { key: 'albumArtist', label: '专辑艺术家' },
+    { key: 'trackNo', label: '音轨号' },
+    { key: 'discNo', label: '碟号' },
+    { key: 'year', label: '年份' },
+    { key: 'genre', label: '流派' },
+    { key: 'composer', label: '作曲' },
+    { key: 'lyricist', label: '作词' },
+    { key: 'arranger', label: '编曲' },
+    { key: 'comment', label: '注释' }
+  ]
+  return pairs
+    .filter(({ key }) => track.tags[key] !== track.initialSnapshot[key])
+    .map(({ key, label }) => ({
+      label,
+      current: track.tags[key] || '已清除',
+      initial: track.initialSnapshot[key] || '（空）'
+    }))
+})
+
+// 内嵌封面（BIZ-015）：随选中曲目按需从后端获取，切换时释放上一个对象 URL
+const coverUrl = ref<string | null>(null)
+const coverLoading = ref(false)
+
+const releaseCover = () => {
+  if (coverUrl.value) {
+    URL.revokeObjectURL(coverUrl.value)
+    coverUrl.value = null
+  }
 }
+
+watch(
+  () => [selectedTrack.value?.id, selectedTrack.value?.hasCover] as const,
+  async ([id, hasCover]) => {
+    releaseCover()
+    if (id == null || !hasCover) return
+    coverLoading.value = true
+    try {
+      coverUrl.value = await fetchCoverUrl(id)
+    } catch {
+      coverUrl.value = null
+    } finally {
+      coverLoading.value = false
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(releaseCover)
+
+const openLyricsEdit = () => openModal('lyrics-edit')
 </script>
 
 <template>
   <aside class="detail-pane">
-    <div class="panel-header">
-      <span class="panel-title">💿 单曲媒体与标签详情</span>
-      <span v-if="selectedTrack" class="track-status-tag" :class="selectedTrack.status">
-        {{ selectedTrack.status === 'saved' ? '已保存 (无待提交)' : selectedTrack.status === 'edited' ? '已编辑 (待写回)' : selectedTrack.status === 'matched' ? '已在线匹配' : '读取损坏/失败' }}
-      </span>
-    </div>
+    <div v-if="selectedTrack" class="detail-scroll">
+      <!-- 标题 -->
+      <section>
+        <h3 class="section-title">当前曲目详情</h3>
+        <div class="track-title">{{ selectedTrack.tags.title || selectedTrack.filename }}</div>
+      </section>
 
-    <div v-if="selectedTrack" class="panel-body">
-      <!-- 封面区域 -->
-      <div class="cover-section">
-        <div class="cover-box">
-          <div class="cover-placeholder">
-            <span class="cover-icon">🎵</span>
-            <span class="cover-desc">600 × 600 · PNG</span>
-          </div>
+      <!-- 封面媒体卡片 (FR-6) -->
+      <section class="cover-card">
+        <img v-if="coverUrl" class="cover-preview" :src="coverUrl" alt="内嵌专辑封面" />
+        <div v-else class="cover-preview cover-empty">
+          <span>{{ coverLoading ? '…' : '🎵' }}</span>
         </div>
-        <div class="cover-actions">
-          <button class="btn sm" title="选择本地图片替换当前内嵌封面">替换封面</button>
-          <button class="btn sm danger" title="清除音频内嵌封面">移除</button>
-        </div>
-      </div>
-
-      <!-- 文件技术参数 -->
-      <div class="meta-section">
-        <div class="section-title">文件参数</div>
-        <div class="meta-row">
-          <span class="meta-label">文件路径:</span>
-          <span class="meta-val path" :title="selectedTrack.filePath">{{ selectedTrack.filePath }}</span>
-        </div>
-        <div class="meta-row">
-          <span class="meta-label">格式规格:</span>
-          <span class="meta-val">{{ selectedTrack.ext.toUpperCase() }} · 24bit / 96kHz · {{ selectedTrack.size }}</span>
-        </div>
-        <div class="meta-row">
-          <span class="meta-label">音频时长:</span>
-          <span class="meta-val">{{ selectedTrack.duration }}</span>
-        </div>
-      </div>
-
-      <!-- 内嵌歌词状态与独立编辑入口 (BIZ-012) -->
-      <div class="meta-section">
-        <div class="section-title flex-between">
-          <span>内嵌歌词 (LRC)</span>
-          <span class="badge-lyrics-info">
-            {{ hasLyrics ? `${lyricsLineCount} 行 · 已同步` : '暂无歌词' }}
+        <div class="cover-meta">
+          <span class="filename">{{ selectedTrack.filename }}</span>
+          <span class="filesize">
+            {{ selectedTrack.ext.toUpperCase() }} · {{ selectedTrack.size || '—' }} ·
+            {{ selectedTrack.duration || '时长未知' }}
+          </span>
+          <span class="link" title="封面替换依赖于写回能力，计划在 S2 交付">
+            🖼️ 替换封面图片…（S2）
           </span>
         </div>
+      </section>
 
-        <div class="lyrics-preview-box">
-          <div v-if="hasLyrics" class="lyrics-text">
-            {{ selectedTrack.tags.lyrics }}
-          </div>
-          <div v-else class="lyrics-empty">
-            <span>（本地音轨无内嵌歌词）</span>
+      <!-- 核心元数据 -->
+      <section>
+        <h3 class="section-title">核心元数据</h3>
+        <dl class="meta-kv">
+          <dt>艺术家</dt>
+          <dd>{{ selectedTrack.tags.artist || '—' }}</dd>
+          <dt>专辑</dt>
+          <dd>{{ selectedTrack.tags.album || '—' }}</dd>
+          <dt>音轨 / 碟号</dt>
+          <dd>{{ selectedTrack.tags.trackNo || '—' }} / 碟 {{ selectedTrack.tags.discNo || '—' }}</dd>
+          <dt>年份 / 流派</dt>
+          <dd>{{ selectedTrack.tags.year || '—' }} · {{ selectedTrack.tags.genre || '—' }}</dd>
+          <dt>内嵌歌词</dt>
+          <dd>
+            <span class="lyrics-state">{{ hasLyrics ? `已有歌词（${lyricsLineCount} 行）` : '暂无' }}</span>
+          </dd>
+          <dt>状态</dt>
+          <dd>
+            <span class="state-text" :class="selectedTrack.status">{{ statusText }}</span>
+          </dd>
+        </dl>
+      </section>
+
+      <!-- 当前值 vs 首次快照差异比对 (BIZ-006) -->
+      <section>
+        <h3 class="section-title">当前修改 vs 首次读取快照</h3>
+        <div v-if="changedFields.length > 0" class="diff-box">
+          <div v-for="field in changedFields" :key="field.label" class="diff-row">
+            <span class="diff-label">{{ field.label }}</span>
+            <span class="diff-values">
+              <span class="diff-current">{{ field.current }}</span>
+              <span class="diff-initial">（首次：{{ field.initial }}）</span>
+            </span>
           </div>
         </div>
+        <p v-else class="diff-empty">无未提交变更</p>
+      </section>
 
-        <div class="lyrics-btn-bar">
-          <button
-            class="btn sm btn-lyrics-action"
-            :class="{ 'has-content': hasLyrics }"
-            @click="handleOpenLyricsEdit"
-          >
-            {{ hasLyrics ? '📝 编辑歌词 (BIZ-012)' : '+ 添加歌词 (BIZ-012)' }}
+      <!-- 内嵌歌词 (FR-6) -->
+      <section>
+        <div class="section-head">
+          <h3 class="section-title">内嵌歌词</h3>
+          <span class="link" @click="openLyricsEdit">{{ hasLyrics ? '编辑歌词' : '添加歌词' }}</span>
+        </div>
+        <div class="lyrics-box">
+          <template v-if="hasLyrics">{{ selectedTrack.tags.lyrics }}</template>
+          <span v-else class="lyrics-empty">（本地音轨无内嵌歌词）</span>
+        </div>
+        <div class="lyrics-actions">
+          <button class="btn sm" @click="openLyricsEdit">
+            {{ hasLyrics ? '📝 编辑歌词' : '+ 添加歌词' }}
           </button>
-          <button class="btn sm" @click="openModal('lyrics-search')">
-            🎵 在线搜索歌词
-          </button>
+          <button class="btn sm" @click="openModal('lyrics-search')">🎵 在线搜索歌词</button>
         </div>
-      </div>
-
-      <!-- 字段比对列表 -->
-      <div class="meta-section">
-        <div class="section-title">当前标签 vs 首次快照</div>
-        <div class="tag-diff-list">
-          <div class="diff-item">
-            <span class="meta-label">标题:</span>
-            <span class="meta-val" :class="{ 'is-edited': selectedTrack.tags.title !== selectedTrack.initialSnapshot.title }">
-              {{ selectedTrack.tags.title || '—' }}
-            </span>
-          </div>
-          <div class="diff-item">
-            <span class="meta-label">艺术家:</span>
-            <span class="meta-val" :class="{ 'is-edited': selectedTrack.tags.artist !== selectedTrack.initialSnapshot.artist }">
-              {{ selectedTrack.tags.artist || '—' }}
-            </span>
-          </div>
-          <div class="diff-item">
-            <span class="meta-label">专辑:</span>
-            <span class="meta-val" :class="{ 'is-edited': selectedTrack.tags.album !== selectedTrack.initialSnapshot.album }">
-              {{ selectedTrack.tags.album || '—' }}
-            </span>
-          </div>
-          <div class="diff-item">
-            <span class="meta-label">音轨/碟号:</span>
-            <span class="meta-val">
-              {{ selectedTrack.tags.trackNo || '—' }} / Disc {{ selectedTrack.tags.discNo || '—' }}
-            </span>
-          </div>
-          <div class="diff-item">
-            <span class="meta-label">年份/流派:</span>
-            <span class="meta-val">
-              {{ selectedTrack.tags.year || '—' }} · {{ selectedTrack.tags.genre || '—' }}
-            </span>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
 
     <div v-else class="panel-empty">
@@ -141,194 +189,204 @@ const handleOpenLyricsEdit = () => {
 
 <style scoped>
 .detail-pane {
-  width: 290px;
-  min-width: 280px;
-  max-width: 340px;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   background: var(--surface-2);
-  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.panel-header {
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  background: var(--surface-3);
-  border-bottom: 1px solid var(--border);
-}
-.panel-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-bright);
-}
-
-.track-status-tag {
-  font-size: 10.5px;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-.track-status-tag.saved {
-  background: var(--state-ok-soft);
-  color: var(--state-ok);
-  border: 1px solid var(--state-ok);
-}
-.track-status-tag.edited {
-  background: var(--state-edited-soft);
-  color: var(--state-edited);
-  border: 1px solid var(--state-edited);
-}
-.track-status-tag.matched {
-  background: var(--state-matched-soft);
-  color: var(--state-matched);
-  border: 1px solid var(--state-matched);
-}
-.track-status-tag.failed {
-  background: var(--state-failed-soft);
-  color: var(--state-failed);
-  border: 1px solid var(--state-failed);
-}
-
-.panel-body {
+/* 保留滚轮滚动，但隐藏滚动条以免影响观感（BIZ-017 反馈） */
+.detail-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.detail-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
-.cover-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+.section-title {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
 }
-.cover-box {
-  width: 130px;
-  height: 130px;
-  background: var(--surface-3);
-  border: 1px solid var(--border-strong);
+
+.track-title {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+/* 封面卡片：横向排版（与原型一致） */
+.cover-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.cover-preview {
+  width: 96px;
+  height: 96px;
   border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-3);
+  flex-shrink: 0;
+  object-fit: cover;
+  display: block;
+}
+.cover-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-}
-.cover-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.cover-icon {
-  font-size: 32px;
-}
-.cover-desc {
-  font-size: 10px;
+  font-size: 26px;
   color: var(--text-muted);
 }
-.cover-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.meta-section {
+.cover-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+}
+.cover-meta .filename {
+  font-weight: 600;
+  color: var(--text-bright);
+  word-break: break-all;
+  line-height: 1.35;
+}
+.cover-meta .filesize {
+  color: var(--text-muted);
+}
+.link {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+/* 核心元数据键值表 */
+.meta-kv {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 6px 8px;
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.meta-kv dt {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.meta-kv dd {
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+.lyrics-state {
+  color: var(--accent);
+  font-size: 11.5px;
+}
+.state-text {
+  font-weight: 600;
+}
+.state-text.saved {
+  color: var(--state-ok);
+}
+.state-text.edited {
+  color: var(--state-edited);
+}
+.state-text.matched {
+  color: var(--state-matched);
+}
+.state-text.failed {
+  color: var(--state-failed);
+}
+
+/* 差异比对 */
+.diff-box {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   background: var(--surface);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 8px;
 }
-.section-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-.flex-between {
+.diff-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.badge-lyrics-info {
-  font-size: 10px;
-  color: var(--accent);
-}
-
-.meta-row {
-  display: flex;
+  gap: 8px;
   font-size: 11.5px;
-  line-height: 1.4;
-  gap: 6px;
 }
-.meta-label {
-  color: var(--text-muted);
-  width: 65px;
+.diff-label {
+  width: 62px;
   flex-shrink: 0;
+  color: var(--text-muted);
 }
-.meta-val {
-  color: var(--text-bright);
-  word-break: break-all;
+.diff-values {
+  min-width: 0;
+  word-break: break-word;
 }
-.meta-val.path {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--text);
-}
-.meta-val.is-edited {
+.diff-current {
   color: var(--state-edited);
   font-weight: 600;
 }
+.diff-initial {
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+.diff-empty {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
 
-.lyrics-preview-box {
-  height: 70px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 6px;
-  overflow-y: auto;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.4;
-}
-.lyrics-text {
-  white-space: pre-wrap;
-  color: var(--text);
-}
-.lyrics-empty {
+/* 内嵌歌词 */
+.section-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 100%;
+  justify-content: space-between;
+}
+.lyrics-box {
+  margin-top: 8px;
+  max-height: 84px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: none;
+}
+.lyrics-box::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.lyrics-empty {
   color: var(--text-muted);
-  font-size: 11px;
+  font-family: var(--font);
 }
-.lyrics-btn-bar {
+.lyrics-actions {
   display: flex;
   gap: 6px;
-  margin-top: 4px;
-}
-.btn-lyrics-action.has-content {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.tag-diff-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.diff-item {
-  display: flex;
-  font-size: 11px;
-  gap: 6px;
+  margin-top: 8px;
 }
 
 .panel-empty {

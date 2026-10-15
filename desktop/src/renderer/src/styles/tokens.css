@@ -61,3 +61,42 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
   --color-scheme: light;
 }
+
+/**
+ * 语义别名 Token
+ *
+ * 组件层（布局、模态窗等）使用的一组语义名；通过 var() 引用上方调色板，
+ * 因此自动跟随 data-theme 切换，无需按主题重复定义。
+ */
+:root {
+  /* 层次：窗口底 → 面板 → 触达态 */
+  --bg-base: var(--surface-2);
+  --bg-surface: var(--surface);
+  --bg-hover: var(--surface-hover);
+  --bg-active: var(--accent-soft);
+  --border-subtle: var(--border);
+
+  /* 文本与字体 */
+  --text-main: var(--text-bright);
+  --font: var(--font-sans);
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-md: 13px;
+
+  /* 间距与圆角 */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-xl: 20px;
+
+  /* 语义反馈色 */
+  --accent-dim: var(--accent-soft);
+  --success: var(--state-ok);
+  --success-dim: var(--state-ok-soft);
+  --warning: var(--state-edited);
+  --warning-dim: var(--state-edited-soft);
+  --info: var(--accent);
+  --info-dim: var(--accent-soft);
+}

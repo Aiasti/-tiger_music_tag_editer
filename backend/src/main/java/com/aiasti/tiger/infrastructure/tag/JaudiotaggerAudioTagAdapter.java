@@ -1,10 +1,11 @@
 package com.aiasti.tiger.infrastructure.tag;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Locale;
-import java.util.Set;
-
+import com.aiasti.tiger.domain.exception.TagAccessException;
+import com.aiasti.tiger.domain.model.AudioMetadata;
+import com.aiasti.tiger.domain.model.ImageMimeTypes;
+import com.aiasti.tiger.domain.model.TagField;
+import com.aiasti.tiger.domain.model.TrackTags;
+import com.aiasti.tiger.domain.port.TagAccessPort;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.audio.exceptions.CannotReadException;
@@ -20,16 +21,16 @@ import org.jaudiotagger.tag.images.StandardArtwork;
 import org.jaudiotagger.tag.wav.WavTag;
 import org.springframework.stereotype.Component;
 
-import com.aiasti.tiger.domain.exception.TagAccessException;
-import com.aiasti.tiger.domain.model.TagField;
-import com.aiasti.tiger.domain.model.TrackTags;
-import com.aiasti.tiger.domain.port.TagAccessPort;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * 基于 jaudiotagger 的标签读写适配器。
  *
- * <p>是项目中唯一接触 jaudiotagger 的位置，把库的 API 转换为 {@link TrackTags}。
- * 已知限制：WAV 的标签写回在 jaudiotagger 3.0.1 下不生效（见 dev.md DEV-001）。
+ * <p>是项目中唯一接触 jaudiotagger 的位置，把库的 API 转换为 {@link TrackTags} 与 {@link AudioMetadata}。
+ * 已知限制：WAV 的标签写回需先挂 ID3 子标签（见 dev.md DEV-001）。
  */
 @Component
 public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
@@ -45,24 +46,10 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
     }
 
     @Override
-    public TrackTags read(Path file) {
+    public AudioMetadata read(Path file) {
         try {
-            Tag tag = AudioFileIO.read(file.toFile()).getTag();
-            if (tag == null) {
-                return TrackTags.empty();
-            }
-            TrackTags result = TrackTags.empty();
-            for (TagField field : TagField.values()) {
-                String value = readFieldQuietly(tag, JaudiotaggerFieldKeyMapper.toLibrary(field));
-                if (value != null && !value.isEmpty()) {
-                    result = result.withValue(field, value);
-                }
-            }
-            Artwork artwork = tag.getFirstArtwork();
-            if (artwork != null && artwork.getBinaryData() != null) {
-                result = result.withCover(artwork.getBinaryData());
-            }
-            return result;
+            AudioFile audioFile = AudioFileIO.read(file.toFile());
+            return new AudioMetadata(readTags(audioFile.getTag()), durationSeconds(audioFile));
         } catch (CannotReadException | IOException | TagException
                  | ReadOnlyFileException | InvalidAudioFrameException e) {
             throw new TagAccessException("读取标签失败: " + file, e);
@@ -95,6 +82,36 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
         } catch (CannotReadException | IOException | TagException
                  | ReadOnlyFileException | InvalidAudioFrameException | CannotWriteException e) {
             throw new TagAccessException("写入标签失败: " + file, e);
+        }
+    }
+
+    private static TrackTags readTags(Tag tag) {
+        if (tag == null) {
+            return TrackTags.empty();
+        }
+        TrackTags result = TrackTags.empty();
+        for (TagField field : TagField.values()) {
+            String value = readFieldQuietly(tag, JaudiotaggerFieldKeyMapper.toLibrary(field));
+            if (value != null && !value.isEmpty()) {
+                result = result.withValue(field, value);
+            }
+        }
+        Artwork artwork = tag.getFirstArtwork();
+        if (artwork != null && artwork.getBinaryData() != null) {
+            result = result.withCover(artwork.getBinaryData());
+        }
+        return result;
+    }
+
+    private static long durationSeconds(AudioFile audioFile) {
+        try {
+            if (audioFile.getAudioHeader() == null) {
+                return 0;
+            }
+            return Math.max(0, audioFile.getAudioHeader().getTrackLength());
+        } catch (RuntimeException e) {
+            // 部分容器无法给出时长：按未知处理，不影响标签读取
+            return 0;
         }
     }
 

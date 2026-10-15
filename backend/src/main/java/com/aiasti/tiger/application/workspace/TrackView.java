@@ -8,6 +8,7 @@ public record TrackView(
         String filePath,
         String size,
         String duration,
+        boolean hasCover,
         String status,
         String failureReason,
         TagValues tags,

@@ -1,19 +1,18 @@
 package com.aiasti.tiger.application;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import com.aiasti.tiger.application.workspace.TrackView;
 import com.aiasti.tiger.application.workspace.Workspace;
 import com.aiasti.tiger.application.workspace.WorkspaceView;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** S1 验证：导入用例的递归发现、去重、失败隔离与首次快照（FR-1、BIZ-006、BIZ-014）。 */
 class ImportWorkspaceServiceTest {
@@ -73,6 +72,50 @@ class ImportWorkspaceServiceTest {
         assertEquals("saved", track.status());
         assertEquals("ok.mp3", track.tags().title());
         assertEquals(track.tags(), track.initialSnapshot(), "导入时首次快照应等于当前值");
+    }
+
+    @Test
+    void importedTrackCarriesDurationAndCoverFlag() throws IOException {
+        createFile(tempDir, "ok.mp3");
+
+        TrackView track = serviceWith(new StubTagAccessPort("mp3"))
+                .importPaths(List.of(tempDir.toString()), true)
+                .tracks().getFirst();
+
+        assertEquals("2:05", track.duration(), "125 秒应格式化为 2:05");
+        assertTrue(track.hasCover(), "内嵌封面应被标记");
+    }
+
+    @Test
+    void removeTakesTracksOutOfWorkspaceOnly() throws IOException {
+        createFile(tempDir, "ok1.mp3");
+        createFile(tempDir, "ok2.mp3");
+
+        ImportWorkspaceService service = serviceWith(new StubTagAccessPort("mp3"));
+        WorkspaceView imported = service.importPaths(List.of(tempDir.toString()), true);
+        long firstId = imported.tracks().getFirst().id();
+
+        WorkspaceView afterRemove = service.removeTracks(List.of(firstId));
+
+        assertEquals(1, afterRemove.tracks().size(), "移除后仅剩一首");
+        assertTrue(afterRemove.tracks().stream().noneMatch(track -> track.id() == firstId));
+        assertTrue(Files.exists(tempDir.resolve("ok1.mp3")), "移出工作区不应删除磁盘文件");
+    }
+
+    /** 清空工作区应释放会话内状态（BIZ-017）。 */
+    @Test
+    void clearWorkspaceEmptiesSessionState() throws IOException {
+        createFile(tempDir, "a.mp3");
+        createFile(tempDir, "bad.mp3");
+
+        ImportWorkspaceService service = serviceWith(new StubTagAccessPort("mp3"));
+        service.importPaths(List.of(tempDir.toString()), true);
+
+        WorkspaceView cleared = service.clearWorkspace();
+
+        assertTrue(cleared.tracks().isEmpty(), "清空后不应保留曲目");
+        assertTrue(cleared.skipped().isEmpty(), "清空后不应保留跳过项");
+        assertTrue(Files.exists(tempDir.resolve("a.mp3")), "清空工作区不应删除磁盘文件");
     }
 
     @Test

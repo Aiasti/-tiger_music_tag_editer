@@ -1,14 +1,14 @@
-package com.aiasti.tiger.infrastructure.tag;
+package com.aiasti.tiger.domain.model;
 
-/** 依据文件头识别封面图片的 MIME 类型。 */
-final class ImageMimeTypes {
+/** 依据文件头识别图片 MIME 类型（纯逻辑，不依赖框架或外部 SDK）。 */
+public final class ImageMimeTypes {
 
     private static final String DEFAULT_MIME = "image/jpeg";
 
     private ImageMimeTypes() {
     }
 
-    static String detect(byte[] data) {
+    public static String detect(byte[] data) {
         if (data == null || data.length < 3) {
             return DEFAULT_MIME;
         }

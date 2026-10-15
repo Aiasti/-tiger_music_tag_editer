@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useTheme } from './composables/useTheme'
 import { useModals } from './composables/useModals'
 import { useWorkspace } from './composables/useWorkspace'
+import { shouldClearWorkspaceOnStart } from './api/client'
 
 // 布局组件
 import AppHeader from './components/layout/AppHeader.vue'
@@ -23,12 +24,16 @@ import SettingsModal from './components/modals/SettingsModal.vue'
 
 const { initTheme } = useTheme()
 const { activeModal, closeModal } = useModals()
-const { tracks, importing, importError, refreshWorkspace } = useWorkspace()
+const { tracks, importing, importError, refreshWorkspace, clearWorkspaceSession } = useWorkspace()
 
-onMounted(() => {
+onMounted(async () => {
   initTheme()
-  // 打开时拉取当前会话工作区（后端内存态）
-  void refreshWorkspace()
+  // 工作区为纯会话状态：应用启动即清空（BIZ-017）；渲染层重载则与后端会话状态重新同步
+  if (await shouldClearWorkspaceOnStart()) {
+    await clearWorkspaceSession()
+  } else {
+    await refreshWorkspace()
+  }
 })
 </script>
 

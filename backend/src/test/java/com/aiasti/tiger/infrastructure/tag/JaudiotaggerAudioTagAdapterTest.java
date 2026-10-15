@@ -50,10 +50,20 @@ class JaudiotaggerAudioTagAdapterTest {
         TrackTags expected = sampleTags();
         adapter.write(work, expected);
 
-        TrackTags actual = adapter.read(work);
+        TrackTags actual = adapter.read(work).tags();
         for (TagField field : TagField.values()) {
             assertEquals(expected.value(field), actual.value(field), format + " / " + field);
         }
+    }
+
+    /** 读取应同时给出音频时长（mp3 样本为 0.5 秒，至少可解析出非负值）。 */
+    @Test
+    void readReturnsDuration(@TempDir Path tempDir) throws Exception {
+        Path work = copySample("sample.mp3", tempDir);
+
+        long seconds = adapter.read(work).durationSeconds();
+
+        assertTrue(seconds >= 0, "时长应可解析且非负");
     }
 
     /** 回归：读取未打标签的原始样本不应抛异常（WAV 的 RIFF INFO 不支持部分字段）。BUG-003。 */
@@ -62,7 +72,7 @@ class JaudiotaggerAudioTagAdapterTest {
     void readsUntaggedSampleWithoutFailing(String format, String fileName, @TempDir Path tempDir) throws Exception {
         Path work = copySample(fileName, tempDir);
 
-        TrackTags tags = adapter.read(work);
+        TrackTags tags = adapter.read(work).tags();
 
         assertNotNull(tags, format + " 读取不应返回 null");
     }
@@ -74,7 +84,7 @@ class JaudiotaggerAudioTagAdapterTest {
 
         adapter.write(work, sampleTags().withCover(cover));
 
-        TrackTags actual = adapter.read(work);
+        TrackTags actual = adapter.read(work).tags();
         assertTrue(actual.hasCover(), "应读回封面");
         assertArrayEquals(cover, actual.cover());
     }
