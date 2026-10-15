@@ -12,6 +12,7 @@ import org.jaudiotagger.audio.exceptions.CannotWriteException;
 import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
 import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
 import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.KeyNotFoundException;
 import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.TagException;
 import org.jaudiotagger.tag.images.Artwork;
@@ -52,7 +53,7 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
             }
             TrackTags result = TrackTags.empty();
             for (TagField field : TagField.values()) {
-                String value = tag.getFirst(JaudiotaggerFieldKeyMapper.toLibrary(field));
+                String value = readFieldQuietly(tag, JaudiotaggerFieldKeyMapper.toLibrary(field));
                 if (value != null && !value.isEmpty()) {
                     result = result.withValue(field, value);
                 }
@@ -94,6 +95,21 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
         } catch (CannotReadException | IOException | TagException
                  | ReadOnlyFileException | InvalidAudioFrameException | CannotWriteException e) {
             throw new TagAccessException("写入标签失败: " + file, e);
+        }
+    }
+
+    /**
+     * 读取单个字段；容器或标签体系不支持该字段时返回 {@code null}。
+     *
+     * <p>jaudiotagger 在部分格式（如 WAV 的 RIFF INFO）上对不支持的字段会抛出
+     * {@code KeyNotFoundException} / {@code UnsupportedOperationException} 等运行时异常，
+     * 这里按「无此字段」处理，避免单字段导致整文件读取失败。
+     */
+    private static String readFieldQuietly(Tag tag, FieldKey key) {
+        try {
+            return tag.getFirst(key);
+        } catch (KeyNotFoundException | UnsupportedOperationException e) {
+            return null;
         }
     }
 

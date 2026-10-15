@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -53,6 +54,17 @@ class JaudiotaggerAudioTagAdapterTest {
         for (TagField field : TagField.values()) {
             assertEquals(expected.value(field), actual.value(field), format + " / " + field);
         }
+    }
+
+    /** 回归：读取未打标签的原始样本不应抛异常（WAV 的 RIFF INFO 不支持部分字段）。BUG-003。 */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("supportedSamples")
+    void readsUntaggedSampleWithoutFailing(String format, String fileName, @TempDir Path tempDir) throws Exception {
+        Path work = copySample(fileName, tempDir);
+
+        TrackTags tags = adapter.read(work);
+
+        assertNotNull(tags, format + " 读取不应返回 null");
     }
 
     @Test
