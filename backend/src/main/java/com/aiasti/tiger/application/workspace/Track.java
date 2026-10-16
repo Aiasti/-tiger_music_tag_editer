@@ -1,20 +1,20 @@
 package com.aiasti.tiger.application.workspace;
 
-import com.aiasti.tiger.domain.model.ImageMimeTypes;
-import com.aiasti.tiger.domain.model.TrackStatus;
-import com.aiasti.tiger.domain.model.TrackTags;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
 
+import com.aiasti.tiger.domain.model.ImageMimeTypes;
+import com.aiasti.tiger.domain.model.TrackStatus;
+import com.aiasti.tiger.domain.model.TrackTags;
+
 /**
  * 工作区中的一个曲目（会话内状态，不跨会话持久化）。
  *
- * <p>按 DEV-002 维护「首次快照」与「当前编辑值」；S1 只做导入展示，两者相同。
- * 「最近成功落盘值」在 S2 引入写回时补充。
+ * <p>按 DEV-002 维护「首次快照」「当前编辑值」与「最近成功落盘值」：首次快照在导入时建立且不再改变，
+ * 当前编辑值在 S2 引入编辑能力后变化，最近落盘基线（{@link DiskBaseline}）在导入成功时记录、写回成功后更新。
  */
 public final class Track {
 
@@ -23,6 +23,8 @@ public final class Track {
     /** 首次读取快照：工作区生命周期内不变，作为提交前回滚目标（BIZ-006）。 */
     private final TrackTags firstSnapshot;
     private final long durationSeconds;
+    /** 最近成功落盘值：导入成功时记录的文件指纹，写回成功后更新（DEV-002、DEV-003）。 */
+    private final DiskBaseline diskBaseline;
     /** 当前编辑值：S1 阶段与快照相同，编辑能力在 S2 引入。 */
     private TrackTags current;
     private TrackStatus status;
@@ -33,6 +35,7 @@ public final class Track {
         this.firstSnapshot = firstSnapshot;
         this.current = firstSnapshot;
         this.durationSeconds = durationSeconds;
+        this.diskBaseline = DiskBaseline.read(path);
         this.status = TrackStatus.SAVED;
     }
 
@@ -54,6 +57,11 @@ public final class Track {
 
     public TrackTags current() {
         return current;
+    }
+
+    /** 最近成功落盘基线；写回预检用它比对文件是否被外部修改（DEV-003）。 */
+    DiskBaseline diskBaseline() {
+        return diskBaseline;
     }
 
     public TrackStatus status() {

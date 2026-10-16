@@ -32,33 +32,62 @@ const lyricsLineCount = computed(() => {
   return lyrics ? lyrics.trim().split('\n').length : 0
 })
 
-/** 当前值 vs 首次读取快照：只列出确实发生变化的字段（BIZ-006）。 */
-const changedFields = computed<{ label: string; current: string; initial: string }[]>(() => {
+/** 差异比对涵盖的核心文本字段；内嵌歌词与封面作为媒体字段单独提示。 */
+const DIFF_PAIRS: { key: keyof TrackTagData; label: string }[] = [
+  { key: 'title', label: '标题' },
+  { key: 'artist', label: '艺术家' },
+  { key: 'album', label: '专辑' },
+  { key: 'albumArtist', label: '专辑艺术家' },
+  { key: 'trackNo', label: '音轨号' },
+  { key: 'discNo', label: '碟号' },
+  { key: 'year', label: '年份' },
+  { key: 'genre', label: '流派' },
+  { key: 'composer', label: '作曲' },
+  { key: 'lyricist', label: '作词' },
+  { key: 'arranger', label: '编曲' },
+  { key: 'comment', label: '注释' }
+]
+
+/** 待提交变更：当前值 vs 最近成功落盘值（FR-8），只列出确实发生变化的字段。 */
+const pendingFields = computed<{ label: string; current: string; written: string }[]>(() => {
   const track = selectedTrack.value
   if (!track) {
     return []
   }
-  const pairs: { key: keyof TrackTagData; label: string }[] = [
-    { key: 'title', label: '标题' },
-    { key: 'artist', label: '艺术家' },
-    { key: 'album', label: '专辑' },
-    { key: 'albumArtist', label: '专辑艺术家' },
-    { key: 'trackNo', label: '音轨号' },
-    { key: 'discNo', label: '碟号' },
-    { key: 'year', label: '年份' },
-    { key: 'genre', label: '流派' },
-    { key: 'composer', label: '作曲' },
-    { key: 'lyricist', label: '作词' },
-    { key: 'arranger', label: '编曲' },
-    { key: 'comment', label: '注释' }
-  ]
-  return pairs
-    .filter(({ key }) => track.tags[key] !== track.initialSnapshot[key])
+  return DIFF_PAIRS
+    .filter(({ key }) => (track.tags[key] ?? '') !== (track.lastWritten[key] ?? ''))
     .map(({ key, label }) => ({
       label,
       current: track.tags[key] || '已清除',
-      initial: track.initialSnapshot[key] || '（空）'
+      written: track.lastWritten[key] || '（空）'
     }))
+})
+
+/** 待提交的媒体字段（歌词与封面）：只提示类别，不展开内容。 */
+const pendingMedia = computed<string[]>(() => {
+  const track = selectedTrack.value
+  if (!track) {
+    return []
+  }
+  const items: string[] = []
+  if ((track.tags.lyrics ?? '') !== (track.lastWritten.lyrics ?? '')) {
+    items.push('内嵌歌词')
+  }
+  if (pendingCovers.value[track.id] !== undefined) {
+    items.push('封面')
+  }
+  return items
+})
+
+/** 最近落盘值与首次读取快照是否不同：回滚会把编辑值改回首次值并重新产生待提交差异（DEV-002）。 */
+const snapshotDrift = computed(() => {
+  const track = selectedTrack.value
+  if (!track) {
+    return false
+  }
+  return (Object.keys(track.lastWritten) as (keyof TrackTagData)[]).some(
+    (key) => (track.lastWritten[key] ?? '') !== (track.initialSnapshot[key] ?? '')
+  )
 })
 
 // 内嵌封面（BIZ-015）：随选中曲目按需从后端获取，切换时释放上一个对象 URL
@@ -150,19 +179,25 @@ const displayCover = computed(() => {
         </dl>
       </section>
 
-      <!-- 当前值 vs 首次快照差异比对 (BIZ-006) -->
+      <!-- 待提交变更 vs 最近落盘值 (FR-8) -->
       <section>
-        <h3 class="section-title">当前修改 vs 首次读取快照</h3>
-        <div v-if="changedFields.length > 0" class="diff-box">
-          <div v-for="field in changedFields" :key="field.label" class="diff-row">
+        <h3 class="section-title">待提交变更 vs 最近落盘值</h3>
+        <div v-if="pendingFields.length > 0" class="diff-box">
+          <div v-for="field in pendingFields" :key="field.label" class="diff-row">
             <span class="diff-label">{{ field.label }}</span>
             <span class="diff-values">
               <span class="diff-current">{{ field.current }}</span>
-              <span class="diff-initial">（首次：{{ field.initial }}）</span>
+              <span class="diff-initial">（落盘：{{ field.written }}）</span>
             </span>
           </div>
         </div>
-        <p v-else class="diff-empty">无未提交变更</p>
+        <p v-else class="diff-empty">无待提交变更</p>
+        <p v-if="pendingMedia.length > 0" class="diff-notice">
+          另有待提交的媒体字段：{{ pendingMedia.join('、') }}
+        </p>
+        <p v-if="snapshotDrift" class="diff-notice">
+          最近落盘值已不同于首次读取快照：提交前回滚会把编辑值改回首次值，并重新产生待提交差异。
+        </p>
       </section>
 
       <!-- 内嵌歌词 (FR-6)：只读预览；编辑入口收敛到工具栏「🎵 歌词搜索」弹窗（BIZ-018、BIZ-020） -->
@@ -344,7 +379,8 @@ const displayCover = computed(() => {
   color: var(--text-faint);
   margin-left: 6px;
 }
-.diff-empty {
+.diff-empty,
+.diff-notice {
   margin: 8px 0 0;
   font-size: 11.5px;
   color: var(--text-muted);

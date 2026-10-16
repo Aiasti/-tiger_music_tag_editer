@@ -49,13 +49,13 @@ const STATUS_TEXT: Record<TrackItem['status'], string> = {
 
 /**
  * 单格染色（BIZ-022，参考原型 `td.cell-edited` / `td.cell-matched`）：
- * 当前值与首次快照不同的可编辑单元格加浅色底与左侧色条，颜色随曲目状态。
+ * 当前值与**最近落盘值**不同的可编辑单元格加浅色底与左侧色条，颜色随曲目状态（FR-8 差异基准）。
  */
 const cellStateClass = (track: TrackItem, field: EditableTagField): string => {
   if (track.status === 'failed') return ''
   const current = track.tags[field] || ''
-  const initial = track.initialSnapshot[field] || ''
-  if (current === initial) return ''
+  const written = track.lastWritten[field] || ''
+  if (current === written) return ''
   return track.status === 'matched' ? 'cell-matched' : 'cell-edited'
 }
 

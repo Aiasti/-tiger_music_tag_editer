@@ -79,8 +79,57 @@ export function useWorkspace() {
 
   const isWorkspaceDirty = computed(() => uncommittedCount.value > 0)
 
+  /** 标签值副本（TrackTagData 全为字符串字段，浅拷贝即满足值隔离，DEV-002）。 */
+  const cloneTags = (tags: TrackTagData): TrackTagData => ({ ...tags })
+
+  /** 相对最近落盘值是否存在待提交差异（含待写回封面，BIZ-020）。 */
+  const hasPendingChanges = (track: TrackItem): boolean => {
+    if (pendingCovers.value[track.id] !== undefined) {
+      return true
+    }
+    return (Object.keys(track.lastWritten) as (keyof TrackTagData)[]).some(
+      (field) => (track.tags[field] ?? '') !== (track.lastWritten[field] ?? '')
+    )
+  }
+
+  /**
+   * 按与最近落盘值的差异刷新状态（FR-8）：无差异即「已保存」；有差异保留「已匹配」来源标记，
+   * 否则为「已编辑」。首次快照与最近落盘值不同时（如成功写回后再回滚），仍会标记为待提交。
+   */
+  const refreshStatus = (track: TrackItem): void => {
+    if (track.status === 'failed') {
+      return
+    }
+    if (!hasPendingChanges(track)) {
+      track.status = 'saved'
+    } else if (track.status !== 'matched') {
+      track.status = 'edited'
+    }
+  }
+
+  /**
+   * 应用后端工作区视图。渲染层是编辑态唯一真源（BIZ-026）：已存在的曲目保留本地编辑值、
+   * 首次快照与最近落盘值，只刷新文件相关的只读信息，避免后续导入或刷新丢失未提交编辑。
+   */
   const applyView = (view: WorkspaceView) => {
-    tracks.value = view.tracks
+    const localById = new Map(tracks.value.map((t) => [t.id, t]))
+    tracks.value = view.tracks.map((raw) => {
+      const local = localById.get(raw.id)
+      if (!local) {
+        // 新导入曲目：导入时读取值即最近落盘值（DEV-002）
+        return { ...raw, lastWritten: cloneTags(raw.tags) }
+      }
+      return {
+        ...local,
+        filename: raw.filename,
+        ext: raw.ext,
+        filePath: raw.filePath,
+        size: raw.size,
+        duration: raw.duration,
+        hasCover: raw.hasCover,
+        failureReason: raw.failureReason
+      }
+    })
     skipped.value = view.skipped
     // 选区跟随数据收敛：剔除已不存在（如被移出工作区）的 id
     const existing = new Set(tracks.value.map((t) => t.id))
@@ -222,7 +271,7 @@ export function useWorkspace() {
       const curTrackNum = startTrack + idx
       track.tags.trackNo = autoFillTotal ? `${curTrackNum}/${totalCount}` : `${curTrackNum}`
       track.tags.discNo = `${discNumber}`
-      track.status = 'edited'
+      refreshStatus(track)
     })
   }
 
@@ -238,7 +287,7 @@ export function useWorkspace() {
         }
       }
       if (changed) {
-        track.status = 'edited'
+        refreshStatus(track)
       }
     })
   }
@@ -248,7 +297,7 @@ export function useWorkspace() {
     const list = operationScope.value
     list.forEach((track) => {
       track.tags.lyrics = lyricsText
-      track.status = 'edited'
+      refreshStatus(track)
     })
   }
 
@@ -267,9 +316,7 @@ export function useWorkspace() {
     if (track) {
       if (track.tags[field] !== newValue) {
         track.tags[field] = newValue
-        if (track.status !== 'failed') {
-          track.status = 'edited'
-        }
+        refreshStatus(track)
       }
     }
     editingCell.value = null
@@ -304,7 +351,7 @@ export function useWorkspace() {
     const track = tracks.value.find((t) => t.id === trackId)
     if (!track || track.status === 'failed') return
     pendingCovers.value = { ...pendingCovers.value, [trackId]: dataUrl }
-    track.status = 'edited'
+    refreshStatus(track)
   }
 
   // 更新内嵌歌词（进入内存编辑态，严禁直接落盘）
@@ -312,7 +359,7 @@ export function useWorkspace() {
     const track = tracks.value.find((t) => t.id === trackId)
     if (track && track.status !== 'failed') {
       track.tags.lyrics = lyricsText
-      track.status = 'edited'
+      refreshStatus(track)
     }
   }
 
@@ -343,7 +390,7 @@ export function useWorkspace() {
         modified = true
       }
       if (modified) {
-        t.status = 'edited'
+        refreshStatus(t)
       }
     })
   }
@@ -368,44 +415,57 @@ export function useWorkspace() {
       }
       if (modified) {
         t.status = 'matched'
+        refreshStatus(t)
       }
     })
   }
 
-  // 提交前回滚至首次快照 (BIZ-006 / FR-8)
+  // 提交前回滚至首次快照 (BIZ-006 / FR-8)：只改编辑态与顺序，不写盘；最近落盘值保持不变
   const rollbackTrack = (trackId: number) => {
     const track = tracks.value.find((t) => t.id === trackId)
     if (track && track.status !== 'failed') {
-      track.tags = JSON.parse(JSON.stringify(track.initialSnapshot))
-      track.status = 'saved'
+      track.tags = cloneTags(track.initialSnapshot)
     }
     if (pendingCovers.value[trackId] !== undefined) {
       const next = { ...pendingCovers.value }
       delete next[trackId]
       pendingCovers.value = next
     }
+    if (track) {
+      refreshStatus(track)
+    }
   }
 
   const rollbackAll = () => {
     // 顺序先恢复为导入顺序（曲目 id 按导入递增，升序即导入顺序），再恢复首次快照（BIZ-008 / BIZ-006）
     tracks.value = [...tracks.value].sort((a, b) => a.id - b.id)
-    tracks.value.forEach((t) => {
-      if (t.status !== 'failed') {
-        t.tags = JSON.parse(JSON.stringify(t.initialSnapshot))
-        t.status = 'saved'
-      }
-    })
     // 封面同属媒体字段编辑态，回滚一并丢弃待写回值（BIZ-020 / BIZ-021）
     pendingCovers.value = {}
+    tracks.value.forEach((t) => {
+      if (t.status !== 'failed') {
+        t.tags = cloneTags(t.initialSnapshot)
+      }
+      // 首次快照与最近落盘值不同时（如已成功写回后再回滚）仍标记为待提交（DEV-002）
+      refreshStatus(t)
+    })
   }
 
-  // 确认写回落盘（将当前编辑值置为已保存）
+  /**
+   * S2-1 占位实现：把当前编辑值记为「最近成功落盘值」并清除待写回封面，首次快照保持不变（FR-8）。
+   * 仍不写盘；S2-2 接入后端写回后改为使用写回返回的实际磁盘状态与执行结果。
+   */
   const commitDiskWriteAll = () => {
     tracks.value.forEach((t) => {
-      if (t.status === 'edited' || t.status === 'matched') {
-        t.initialSnapshot = JSON.parse(JSON.stringify(t.tags))
-        t.status = 'saved'
+      if (t.status === 'failed' || !hasPendingChanges(t)) {
+        return
       }
+      t.lastWritten = cloneTags(t.tags)
+      if (pendingCovers.value[t.id] !== undefined) {
+        const next = { ...pendingCovers.value }
+        delete next[t.id]
+        pendingCovers.value = next
+      }
+      t.status = 'saved'
     })
   }
 

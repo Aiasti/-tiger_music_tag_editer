@@ -1,8 +1,11 @@
 import type { TrackItem, SkipItem } from '../types'
 
+/** 后端返回的曲目视图：不含渲染层独有的「最近成功落盘值」（DEV-002、BIZ-026）。 */
+export type TrackApiItem = Omit<TrackItem, 'lastWritten'>
+
 /** 后端工作区视图（与 Spring Boot 返回契约一致）。 */
 export interface WorkspaceView {
-  tracks: TrackItem[]
+  tracks: TrackApiItem[]
   skipped: SkipItem[]
 }
 

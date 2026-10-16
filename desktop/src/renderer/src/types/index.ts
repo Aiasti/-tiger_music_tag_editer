@@ -32,7 +32,8 @@ export interface TrackItem {
   status: TrackStatus
   failureReason?: string
   tags: TrackTagData
-  initialSnapshot: TrackTagData // BIZ-006: 首次导入快照，用于提交前回滚与差异比对
+  initialSnapshot: TrackTagData // BIZ-006: 首次导入快照，用于提交前回滚
+  lastWritten: TrackTagData // DEV-002: 最近成功落盘值；待提交差异与已更改标记均以它为基准
 }
 
 export type EditableTagField = keyof Omit<TrackTagData, 'lyrics'>
