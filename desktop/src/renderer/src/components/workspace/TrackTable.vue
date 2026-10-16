@@ -11,6 +11,7 @@ const {
   selectedTrackIds,
   editingCell,
   hasUncommittedInSelection,
+  pendingPaths,
   selectTrack,
   selectAllTracks,
   removeSelectedTracks,
@@ -58,6 +59,18 @@ const cellStateClass = (track: TrackItem, field: EditableTagField): string => {
   if (current === written) return ''
   return track.status === 'matched' ? 'cell-matched' : 'cell-edited'
 }
+
+/** 待写回目标文件名（去扩展名）；无待写回路径时返回空串（BIZ-030）。 */
+const pendingBaseName = (track: TrackItem): string => {
+  const target = pendingPaths.value[track.id]
+  if (!target) return ''
+  const name = target.split(/[\\/]/).pop() ?? target
+  const dot = name.lastIndexOf('.')
+  return dot > 0 ? name.slice(0, dot) : name
+}
+
+/** 文件名列悬停提示：有待写回路径时显示目标完整路径。 */
+const filenameTitle = (track: TrackItem): string => pendingPaths.value[track.id] ?? track.filename
 
 // 拖拽结束后短暂屏蔽行点击：排序本身不改状态，也不应因「落下即选中」产生行染色（BIZ-022）
 const suppressClickUntil = ref(0)
@@ -277,9 +290,12 @@ onUnmounted(() => {
               <span class="row-num">{{ String(index + 1).padStart(2, '0') }}</span>
             </td>
 
-            <!-- 3. 文件名（导入文件名，去除扩展名；BIZ-024） -->
-            <td class="col-filename" :title="track.filename">
-              {{ trackBaseName(track) }}
+            <!-- 3. 文件名（导入文件名，去除扩展名；BIZ-024；有待写回路径时显示目标名，BIZ-030） -->
+            <td class="col-filename" :title="filenameTitle(track)">
+              <template v-if="pendingBaseName(track)">
+                <span class="pending-name">{{ pendingBaseName(track) }}</span>
+              </template>
+              <template v-else>{{ trackBaseName(track) }}</template>
             </td>
 
             <!-- 4. 碟号 -->
@@ -664,6 +680,12 @@ td {
 /* 文件名列：次要信息配色（BIZ-024） */
 td.col-filename {
   color: var(--text-muted);
+}
+
+/* 待写回的文件名（重命名/归档结果，BIZ-030） */
+.pending-name {
+  color: var(--accent);
+  font-weight: 500;
 }
 
 /* 状态列：8px 圆点（BIZ-022，参考原型最左侧列） */

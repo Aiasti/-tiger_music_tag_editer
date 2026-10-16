@@ -9,7 +9,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { tracks, pendingCovers, commitAllWrites, lastWriteOutcomes, writing } = useWorkspace()
+const { tracks, pendingCovers, pendingPaths, commitAllWrites, lastWriteOutcomes, writing } = useWorkspace()
 
 /** 12 个可写回元数据字段的中文标签（与表格列一致）。 */
 const FIELD_LABELS: Record<EditableTagField, string> = {
@@ -29,6 +29,7 @@ const FIELD_LABELS: Record<EditableTagField, string> = {
 
 const OUTCOME_LABELS: Record<WriteOutcomeStatus, string> = {
   written: '已写回',
+  partial: '部分完成（标签已写、路径未改）',
   stale: '未执行（文件已被外部修改）',
   blocked: '未执行（预检未通过）',
   'failed-restored': '失败（已恢复原状）',
@@ -48,6 +49,7 @@ const hasLyricsChange = (track: TrackItem): boolean =>
 
 const isPending = (track: TrackItem): boolean =>
   pendingCovers.value[track.id] !== undefined ||
+  pendingPaths.value[track.id] !== undefined ||
   changedMetadata(track).length > 0 ||
   hasLyricsChange(track)
 
@@ -60,6 +62,7 @@ const results = computed(() => lastWriteOutcomes.value)
 const summary = computed(() => {
   const counts: Record<WriteOutcomeStatus, number> = {
     written: 0,
+    partial: 0,
     stale: 0,
     blocked: 0,
     'failed-restored': 0,
@@ -117,6 +120,13 @@ const handleCommit = async () => {
                   <span v-if="pendingCovers[track.id] !== undefined" class="change-tag">
                     封面
                   </span>
+                  <span
+                    v-if="pendingPaths[track.id]"
+                    class="change-tag path"
+                    :title="pendingPaths[track.id]"
+                  >
+                    路径变更
+                  </span>
                   <span v-if="hasLyricsChange(track)" class="change-tag media">歌词（暂不写回）</span>
                 </td>
                 <td><span class="format-badge">{{ track.ext.toUpperCase() }}</span></td>
@@ -130,7 +140,7 @@ const handleCommit = async () => {
       <div class="safety-features">
         <div class="feat-item">🛡️ <strong>失败隔离：</strong>逐文件独立执行，写回失败会自动恢复该文件为执行前状态</div>
         <div class="feat-item">📦 <strong>恢复材料：</strong>写回前在源文件同目录创建整文件备份，成功后自动清理</div>
-        <div class="feat-item">⏸️ <strong>本轮范围：</strong>只写回 12 个元数据字段与封面；歌词写回待 DEV-005（歌词帧映射）</div>
+        <div class="feat-item">⏸️ <strong>本轮范围：</strong>写回 12 个元数据字段、封面与重命名/归档产生的路径变更；歌词写回待 DEV-005</div>
       </div>
     </div>
 
@@ -142,6 +152,7 @@ const handleCommit = async () => {
           <strong>写回完成</strong>
           <p>
             已写回 <strong>{{ summary.written }}</strong> 首；
+            部分完成 <strong>{{ summary.partial }}</strong> 首；
             未执行 <strong>{{ summary.stale + summary.blocked }}</strong> 首；
             失败 <strong>{{ summary['failed-restored'] + summary['failed-manual'] }}</strong> 首
             （其中需人工处理 <strong>{{ summary['failed-manual'] }}</strong> 首）。
@@ -300,6 +311,11 @@ const handleCommit = async () => {
   background: var(--accent-dim);
 }
 
+.change-tag.path {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .format-badge {
   font-size: 10px;
   font-family: var(--font-mono);
@@ -326,7 +342,8 @@ const handleCommit = async () => {
 }
 
 .outcome-stale,
-.outcome-blocked {
+.outcome-blocked,
+.outcome-partial {
   color: var(--warning);
   border-color: var(--warning);
 }

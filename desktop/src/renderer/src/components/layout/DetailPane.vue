@@ -5,7 +5,7 @@ import { fetchCoverUrl } from '../../api/client'
 import { trackBaseName } from '../../utils/trackText'
 import type { TrackTagData } from '../../types'
 
-const { selectedTrack, pendingCovers } = useWorkspace()
+const { selectedTrack, pendingCovers, pendingPaths } = useWorkspace()
 
 const statusText = computed(() => {
   switch (selectedTrack.value?.status) {
@@ -77,6 +77,15 @@ const pendingMedia = computed<string[]>(() => {
     items.push('封面')
   }
   return items
+})
+
+/** 待写回的路径变更（重命名/归档，BIZ-030）：目标完整路径；无则 null。 */
+const pendingPath = computed<string | null>(() => {
+  const track = selectedTrack.value
+  if (!track) {
+    return null
+  }
+  return pendingPaths.value[track.id] ?? null
 })
 
 /** 最近落盘值与首次读取快照是否不同：回滚会把编辑值改回首次值并重新产生待提交差异（DEV-002）。 */
@@ -198,6 +207,7 @@ const displayCover = computed(() => {
         <p v-if="snapshotDrift" class="diff-notice">
           最近落盘值已不同于首次读取快照：提交前回滚会把编辑值改回首次值，并重新产生待提交差异。
         </p>
+        <p v-if="pendingPath" class="diff-notice">待变更路径（写回后）：{{ pendingPath }}</p>
       </section>
 
       <!-- 内嵌歌词 (FR-6)：只读预览；编辑入口收敛到工具栏「🎵 歌词搜索」弹窗（BIZ-018、BIZ-020） -->

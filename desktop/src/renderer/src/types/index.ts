@@ -54,7 +54,8 @@ export type ModalType =
   | 'online-match'
   | 'lyrics-search'
   | 'cover-edit'
-  | 'rename-preview'
+  | 'rename'
+  | 'archive'
   | 'write-confirm'
   | 'settings'
 
@@ -114,6 +115,7 @@ export interface WriteDiffItem {
 /** 写回结果状态（DEV-003、BIZ-028）；与后端 `WriteOutcomeStatus` 契约值一致。 */
 export type WriteOutcomeStatus =
   | 'written'
+  | 'partial'
   | 'stale'
   | 'blocked'
   | 'failed-restored'

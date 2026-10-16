@@ -25,6 +25,25 @@ const handleRollback = () => {
     rollbackAll()
   }
 }
+
+/**
+ * 归档入口（BIZ-030）：有两个保险层——
+ * ① 按钮在存在未写回内容时**禁用**（不可交互）；
+ * ② 兜底守卫：若仍被触发，先询问是否写回，选「确定」跳转到「确认写回」弹窗，
+ *    选「取消」则不执行归档、未写回内容保持原样。
+ */
+const handleArchive = () => {
+  if (uncommittedCount.value > 0) {
+    const goWriteBack = confirm(
+      `工作区存在 ${uncommittedCount.value} 首曲目的未写回更改。\n是否先写回？\n（选择「取消」将不执行归档，未写回内容保持原样）`
+    )
+    if (goWriteBack) {
+      openModal('write-confirm')
+    }
+    return
+  }
+  openModal('archive')
+}
 </script>
 
 <template>
@@ -87,10 +106,33 @@ const handleRollback = () => {
       <div class="toolbar-divider"></div>
 
       <div class="toolbar-group">
-        <button class="btn" title="依据内置固定模板预览重命名与目录归档 (FR-7)" @click="openModal('rename-preview')">
-          🏷️ 重命名 / 归档
+        <!-- BIZ-030：重命名（按选区）与归档（全工作区）拆为两个入口 -->
+        <button
+          class="btn"
+          title="按文件名模板重命名当前选中的曲目；未选中任何行时不可用 (FR-7 / BIZ-030)"
+          :disabled="selectedTrackIds.length === 0"
+          @click="openModal('rename')"
+        >
+          🏷️ 重命名
         </button>
-        <button class="btn primary writeback-btn" title="将当前编辑态标签与重命名持久化写入磁盘 (FR-8)" @click="openModal('write-confirm')">
+        <button
+          class="btn"
+          :title="
+            uncommittedCount > 0
+              ? '工作区存在未写回更改，请先「💾 确认写回」后再归档 (FR-7 / BIZ-030)'
+              : '按目录模板把工作区内全部文件归档到所选目录 (FR-7 / BIZ-030)'
+          "
+          :disabled="uncommittedCount > 0"
+          @click="handleArchive"
+        >
+          📦 归档
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="toolbar-group">
+        <button class="btn primary writeback-btn" title="将当前编辑态标签与路径变更持久化写入磁盘 (FR-8)" @click="openModal('write-confirm')">
           <span>💾 确认写回</span>
           <span v-if="uncommittedCount > 0" class="badge-count">{{ uncommittedCount }}</span>
         </button>

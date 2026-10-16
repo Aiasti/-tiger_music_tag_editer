@@ -17,7 +17,8 @@ import BatchEditModal from './components/modals/BatchEditModal.vue'
 import OnlineMatchModal from './components/modals/OnlineMatchModal.vue'
 import LyricsSearchModal from './components/modals/LyricsSearchModal.vue'
 import CoverEditModal from './components/modals/CoverEditModal.vue'
-import RenamePreviewModal from './components/modals/RenamePreviewModal.vue'
+import RenameModal from './components/modals/RenameModal.vue'
+import ArchiveModal from './components/modals/ArchiveModal.vue'
 import WriteConfirmModal from './components/modals/WriteConfirmModal.vue'
 import SettingsModal from './components/modals/SettingsModal.vue'
 
@@ -67,7 +68,8 @@ onMounted(async () => {
     <OnlineMatchModal v-if="activeModal === 'online-match'" @close="closeModal" />
     <LyricsSearchModal v-if="activeModal === 'lyrics-search'" @close="closeModal" />
     <CoverEditModal v-if="activeModal === 'cover-edit'" @close="closeModal" />
-    <RenamePreviewModal v-if="activeModal === 'rename-preview'" @close="closeModal" />
+    <RenameModal v-if="activeModal === 'rename'" @close="closeModal" />
+    <ArchiveModal v-if="activeModal === 'archive'" @close="closeModal" />
     <WriteConfirmModal v-if="activeModal === 'write-confirm'" @close="closeModal" />
     <SettingsModal v-if="activeModal === 'settings'" @close="closeModal" />
   </div>

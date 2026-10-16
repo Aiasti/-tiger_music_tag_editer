@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 
@@ -7,16 +7,25 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { operationScope, renamePreview, previewingRename, loadRenamePreview } = useWorkspace()
+const { selectedTracks, selectedTrackIds, renamePreview, previewingRename, loadRenamePreview, applyRenamePlan } =
+  useWorkspace()
 
-/** 目标根目录；空表示保持各文件当前目录（BIZ-029，此时为纯重命名）。 */
-const rootDir = ref('')
-/** 防抖计时器：根目录输入变化后重新预览。 */
+/** 文件名模板（占位符）；默认「音轨号 标题」（BIZ-030：首版即可编辑）。 */
+const nameTemplate = ref('%track% %title%')
+/** 应用结果提示。 */
+const appliedCount = ref<number | null>(null)
+
 let debounce: ReturnType<typeof setTimeout> | null = null
 
-const refresh = () => loadRenamePreview(rootDir.value.trim() === '' ? null : rootDir.value.trim())
+const refresh = () => {
+  if (selectedTracks.value.length === 0) {
+    return Promise.resolve([])
+  }
+  return loadRenamePreview({ mode: 'rename', nameTemplate: nameTemplate.value }, selectedTracks.value)
+}
 
-const onRootDirInput = () => {
+const scheduleRefresh = () => {
+  appliedCount.value = null
   if (debounce) {
     clearTimeout(debounce)
   }
@@ -24,7 +33,13 @@ const onRootDirInput = () => {
 }
 
 onMounted(refresh)
-watch(operationScope, refresh)
+watch(selectedTrackIds, refresh)
+
+const changedCount = computed(() => renamePreview.value.filter((item) => item.changed).length)
+
+const handleApply = () => {
+  appliedCount.value = applyRenamePlan(renamePreview.value)
+}
 
 const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; cls: string } => {
   if (!item.changed) {
@@ -41,28 +56,23 @@ const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; 
 </script>
 
 <template>
-  <ModalContainer title="🏷️ 重命名 / 归档预览 (FR-7)" max-width="880px" @close="emit('close')">
+  <ModalContainer title="🏷️ 重命名（按选区）(FR-7 / BIZ-030)" max-width="880px" @close="emit('close')">
     <div class="rename-modal-body">
       <div class="banner">
         <span>ℹ️</span>
         <div class="banner-text">
-          <strong>内置固定命名模板：&lt;音轨号&gt; &lt;标题&gt;</strong>
+          <strong>只改变文件名，保留原扩展名与所在目录</strong>
           <p>
-            首版只改变文件名并保留原扩展名；归档目录由「目标根目录」决定，留空表示保持文件当前目录（纯重命名）。
-            作用范围为 {{ operationScope.length }} 首曲目。
+            作用于当前选中的 {{ selectedTracks.length }} 首曲目；渲染后自动清洗非法字符、重名冲突加序号。
+            占位符：<code>%track%</code> <code>%title%</code> <code>%artist%</code> <code>%albumArtist%</code>
+            <code>%album%</code> <code>%disc%</code> <code>%year%</code>
           </p>
         </div>
       </div>
 
       <div class="root-row">
-        <label>目标根目录：</label>
-        <input
-          v-model="rootDir"
-          type="text"
-          class="input root-input"
-          placeholder="留空 = 保持各文件当前所在目录"
-          @input="onRootDirInput"
-        />
+        <label>文件名模板：</label>
+        <input v-model="nameTemplate" type="text" class="input root-input" @input="scheduleRefresh" />
         <button class="btn" :disabled="previewingRename" @click="refresh">重新预览</button>
       </div>
 
@@ -85,23 +95,29 @@ const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; 
               <td class="cell-new-path" :title="item.newPath">{{ item.newName }}</td>
               <td>
                 <span class="badge" :class="statusOf(item).cls">{{ statusOf(item).label }}</span>
-                <span v-if="item.adjusted && item.note" class="note" :title="item.note">ⓘ</span>
+                <span v-if="item.note" class="note" :title="item.note">ⓘ</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p v-if="previewingRename" class="rename-note">正在规划…</p>
+      <p v-if="selectedTracks.length === 0" class="rename-note">未选中任何曲目：请先在表格中选择要重命名的行。</p>
+      <p v-else-if="previewingRename" class="rename-note">正在规划…</p>
       <p v-else-if="renamePreview.length === 0" class="rename-note">没有可预览的曲目。</p>
-      <div v-else class="rename-note">
-        * 本片（S3-1）只做规划与预览，<strong>不会移动或重命名磁盘文件</strong>；实际执行在 S3-2 接入。
-      </div>
+      <p v-else class="rename-note">
+        * 点「应用」只写入**待写回态**（{{ changedCount }} 项将改名），不落盘；实际执行在「💾 确认写回」。
+      </p>
+      <p v-if="appliedCount !== null" class="applied-note">
+        已应用到待写回态：{{ appliedCount }} 项；请在工具栏「💾 确认写回」时落盘。
+      </p>
     </div>
 
     <template #footer>
       <button class="btn" @click="emit('close')">关闭</button>
-      <button class="btn primary" disabled title="执行将在 S3-2 接入">应用重命名（S3-2 待接入）</button>
+      <button class="btn primary" :disabled="changedCount === 0" @click="handleApply">
+        应用到待写回（{{ changedCount }} 项）
+      </button>
     </template>
   </ModalContainer>
 </template>
@@ -127,6 +143,12 @@ const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; 
 .banner-text p {
   margin: 4px 0 0 0;
   color: var(--text-muted);
+}
+
+.banner-text code {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  margin-right: 3px;
 }
 
 .root-row {
@@ -233,5 +255,11 @@ const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; 
 .rename-note {
   font-size: var(--font-xs);
   color: var(--text-muted);
+}
+
+.applied-note {
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--accent);
 }
 </style>

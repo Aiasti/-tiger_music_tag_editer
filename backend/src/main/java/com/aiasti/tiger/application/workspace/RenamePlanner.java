@@ -6,57 +6,55 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * 重命名目标路径规划（FR-7、DEV-003 结论 3、BIZ-029）。
+ * 重命名 / 归档目标路径规划（FR-7、DEV-003 结论 3、BIZ-029、BIZ-030）。
  *
- * <p>内置固定模板只产出文件名 {@code <音轨号> <标题>}（保留原扩展名），目录来自目标根目录（默认各文件所在目录）。
- * 负责非法字符清洗、保留设备名与长度处理、重名冲突自动加序号；<b>本类只做规划，不触碰磁盘</b>
- * （实际移动/重命名由 S3-2 执行）。
+ * <p>重命名只改文件名（模板默认 {@code %track% %title%}）；归档移动文件位置（{@code keep} 不移动、
+ * {@code flat} 平铺到所选目录、{@code template} 按目录模板建子目录）。负责模板渲染、非法字符清洗、
+ * 保留设备名与长度处理、重名冲突自动加序号；<b>本类只做规划，不触碰磁盘</b>。
  */
 public final class RenamePlanner {
 
-    /** Windows 文件名非法字符。 */
+    /** 支持的模板占位符（不含 {@code %}）。 */
+    public static final List<String> PLACEHOLDERS =
+            List.of("track", "title", "artist", "albumArtist", "album", "disc", "year");
+
+    /** 重命名 / 归档模式。 */
+    public enum Mode { RENAME, ARCHIVE }
+
+    /** 归档位置：不移动 / 平铺到所选目录 / 按目录模板建子目录。 */
+    public enum ArchiveMode { KEEP, FLAT, TEMPLATE }
+
     private static final String ILLEGAL_CHARS = "<>:\"/\\|?*";
-    /** Windows 保留设备名（不区分大小写）。 */
     private static final Set<String> RESERVED_NAMES = Set.of(
             "CON", "PRN", "AUX", "NUL",
             "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9");
-    /** 单个路径段长度上限（DEV-003 结论 3）。 */
     private static final int MAX_SEGMENT_LENGTH = 120;
-    /** 整路径长度上限（DEV-003 结论 3）。 */
     private static final int MAX_PATH_LENGTH = 240;
-    /** 清洗后全空时的兜底文件名主体。 */
     private static final String FALLBACK_BASE = "未命名";
 
     private RenamePlanner() {
     }
 
-    /** 规划输入：曲目 id、当前路径与命名所需字段。 */
-    public record Source(long id, Path path, String trackNo, String title) {
+    /** 规划输入：曲目 id、当前路径与模板所需字段值。 */
+    public record Source(long id, Path path, Map<String, String> values) {
     }
 
-    /** 规划每个曲目的目标路径；{@code rootDir} 为 {@code null} 时保持各文件当前目录。 */
-    public static List<RenamePlanItem> plan(List<Source> sources, Path rootDir) {
+    /** 规划每个曲目的目标路径；返回与输入同序的结果。 */
+    public static List<RenamePlanItem> plan(List<Source> sources, Mode mode, String nameTemplate,
+                                            String dirTemplate, Path rootDir, ArchiveMode archiveMode) {
         Set<String> batchKeys = new HashSet<>();
         sources.forEach(source -> batchKeys.add(key(source.path())));
 
         List<Desired> desired = new ArrayList<>();
         for (Source source : sources) {
-            String oldName = source.path().getFileName().toString();
-            String extension = extensionOf(oldName);
-            Path directory = rootDir != null ? rootDir : source.path().getParent();
-            String base = baseName(source.trackNo(), source.title());
-            String newName = base == null
-                    ? oldName
-                    : fitLength(directory, sanitizeSegment(base) + extension, extension);
-            Path target = directory.resolve(newName);
-            desired.add(new Desired(source, target, !samePath(target, source.path())));
+            desired.add(desire(source, mode, nameTemplate, dirTemplate, rootDir, archiveMode));
         }
 
-        // 不改名的曲目保留原路径，须先占位，避免其他曲目抢占（BIZ-029 仅改文件名，原地冲突更常见）
         Set<String> taken = new HashSet<>();
         desired.stream().filter(item -> !item.changed()).forEach(item -> taken.add(key(item.target())));
 
@@ -85,6 +83,45 @@ public final class RenamePlanner {
         return items;
     }
 
+    private static Desired desire(Source source, Mode mode, String nameTemplate, String dirTemplate,
+                                  Path rootDir, ArchiveMode archiveMode) {
+        Path current = source.path();
+        String oldName = current.getFileName().toString();
+        if (mode == Mode.RENAME) {
+            String rendered = render(nameTemplate, source.values());
+            if (rendered.isBlank()) {
+                return new Desired(source, current, false);
+            }
+            String extension = extensionOf(oldName);
+            Path directory = current.getParent();
+            String name = fitLength(directory, sanitizeSegment(rendered) + extension, extension);
+            Path target = directory.resolve(name);
+            return new Desired(source, target, !samePath(target, current));
+        }
+        // 归档：文件名不变
+        if (archiveMode == null || archiveMode == ArchiveMode.KEEP) {
+            return new Desired(source, current, false);
+        }
+        Path directory = rootDir;
+        if (archiveMode == ArchiveMode.TEMPLATE) {
+            directory = appendTemplate(rootDir, render(dirTemplate, source.values()));
+        }
+        Path target = fitArchive(directory, oldName);
+        return new Desired(source, target, !samePath(target, current));
+    }
+
+    /** 把目录模板渲染结果按分隔符拆成多段并追加到根目录下（每段单独清洗，空段丢弃）。 */
+    private static Path appendTemplate(Path root, String rendered) {
+        Path result = root;
+        for (String segment : rendered.split("[/\\\\]+")) {
+            String cleaned = sanitizeSegment(segment);
+            if (!cleaned.isEmpty()) {
+                result = result.resolve(cleaned);
+            }
+        }
+        return result;
+    }
+
     private static String note(Desired item, Path target, boolean adjusted, Set<String> batchKeys) {
         if (adjusted) {
             return "因冲突自动调整";
@@ -95,12 +132,10 @@ public final class RenamePlanner {
         return null;
     }
 
-    /** 目标是否已被占用：本次已排定的目标，或磁盘上存在且不属于本批源文件的路径。 */
     private static boolean occupied(Path target, Set<String> taken, Set<String> batchKeys) {
         return taken.contains(key(target)) || (Files.exists(target) && !batchKeys.contains(key(target)));
     }
 
-    /** 目标名是否与当前不同（Windows 路径不区分大小写）。 */
     private static boolean samePath(Path a, Path b) {
         return key(a).equals(key(b));
     }
@@ -114,13 +149,17 @@ public final class RenamePlanner {
         return dot > 0 ? fileName.substring(dot) : "";
     }
 
-    private static String baseName(String trackNo, String title) {
-        String number = sanitizeSegment(trackNo);
-        String name = sanitizeSegment(title);
-        if (number.isEmpty() && name.isEmpty()) {
-            return null;
+    /** 渲染模板：替换已知占位符（{@code %name%}），未知占位符保持原样。 */
+    static String render(String template, Map<String, String> values) {
+        if (template == null) {
+            return "";
         }
-        return (number + " " + name).trim();
+        String result = template;
+        for (String placeholder : PLACEHOLDERS) {
+            String value = values.getOrDefault(placeholder, "");
+            result = result.replace("%" + placeholder + "%", value == null ? "" : value);
+        }
+        return result;
     }
 
     /** 清洗单个路径段：非法字符与控制字符替换为 {@code _}，去尾部空格与点，保留设备名加后缀。 */
@@ -133,7 +172,7 @@ public final class RenamePlanner {
             char c = raw.charAt(i);
             cleaned.append(c < 0x20 || ILLEGAL_CHARS.indexOf(c) >= 0 ? '_' : c);
         }
-        String result = stripTrailing(cleaned.toString());
+        String result = stripTrailing(cleaned.toString()).trim();
         if (RESERVED_NAMES.contains(result.toUpperCase(Locale.ROOT))) {
             result = result + "_";
         }
@@ -148,10 +187,9 @@ public final class RenamePlanner {
         return value.substring(0, end);
     }
 
-    /** 控制总长度：文件名段不超过 {@link #MAX_SEGMENT_LENGTH}、整路径不超过 {@link #MAX_PATH_LENGTH}。 */
+    /** 重命名：控制文件名段与整路径长度。 */
     static String fitLength(Path directory, String fileName, String extension) {
-        String result = fileName;
-        String base = result.substring(0, result.length() - extension.length());
+        String base = fileName.substring(0, fileName.length() - extension.length());
         int limit = MAX_SEGMENT_LENGTH;
         int dirLength = directory.toString().length() + 1;
         if (dirLength + limit > MAX_PATH_LENGTH) {
@@ -164,6 +202,19 @@ public final class RenamePlanner {
             base = FALLBACK_BASE;
         }
         return base + extension;
+    }
+
+    /** 归档：文件名不变，若整路径超长则逐层丢弃最深的目录段。 */
+    static Path fitArchive(Path directory, String fileName) {
+        Path current = directory;
+        while (current != null && current.toString().length() + 1 + fileName.length() > MAX_PATH_LENGTH) {
+            Path parent = current.getParent();
+            if (parent == null) {
+                break;
+            }
+            current = parent;
+        }
+        return (current == null ? directory : current).resolve(fileName);
     }
 
     /** 在扩展名前追加序号：{@code name.mp3} → {@code name (2).mp3}。 */

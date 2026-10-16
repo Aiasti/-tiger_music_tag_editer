@@ -19,7 +19,7 @@ import com.aiasti.tiger.domain.model.TrackTags;
 public final class Track {
 
     private final long id;
-    private final Path path;
+    private Path path;
     /** 首次读取快照：工作区生命周期内不变，作为提交前回滚目标（BIZ-006）。 */
     private final TrackTags firstSnapshot;
     private final long durationSeconds;
@@ -74,6 +74,14 @@ public final class Track {
         this.current = written;
         this.diskBaseline = baseline;
         this.status = TrackStatus.SAVED;
+    }
+
+    /**
+     * 写回成功且路径已变更（重命名/归档）时更新「最近成功落盘值」、当前路径与状态（DEV-003 结论 2）。
+     */
+    synchronized void markWrittenAt(Path newPath, TrackTags written, DiskBaseline baseline) {
+        this.path = newPath;
+        markWritten(written, baseline);
     }
 
     public TrackStatus status() {

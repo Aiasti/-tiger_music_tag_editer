@@ -15,6 +15,7 @@ import {
   importPaths,
   previewRename,
   removeTracks,
+  type RenamePreviewOptions,
   type WorkspaceView
 } from '../api/client'
 
@@ -50,6 +51,8 @@ const selectedTrackId = ref<number | null>(null)
 const selectedTrackIds = ref<number[]>([])
 /** 待写回封面（BIZ-020）：trackId → data URL；空串表示已标记移除封面。仅内存编辑态。 */
 const pendingCovers = ref<Record<number, string>>({})
+/** 待写回路径（BIZ-030）：trackId → 目标完整路径；点「应用」后写入，随「确认写回」落盘。 */
+const pendingPaths = ref<Record<number, string>>({})
 /** 最近一次写回结果（BIZ-028）：供结果面板逐项展示。 */
 const lastWriteOutcomes = ref<WriteOutcomeItem[]>([])
 /** 写回进行中标记。 */
@@ -116,9 +119,9 @@ export function useWorkspace() {
   /** 标签值副本（TrackTagData 全为字符串字段，浅拷贝即满足值隔离，DEV-002）。 */
   const cloneTags = (tags: TrackTagData): TrackTagData => ({ ...tags })
 
-  /** 相对最近落盘值是否存在待提交差异（含待写回封面，BIZ-020）。 */
+  /** 相对最近落盘值是否存在待提交差异（含待写回封面与路径，BIZ-020、BIZ-030）。 */
   const hasPendingChanges = (track: TrackItem): boolean => {
-    if (pendingCovers.value[track.id] !== undefined) {
+    if (pendingCovers.value[track.id] !== undefined || pendingPaths.value[track.id] !== undefined) {
       return true
     }
     return (Object.keys(track.lastWritten) as (keyof TrackTagData)[]).some(
@@ -176,6 +179,14 @@ export function useWorkspace() {
       }
     }
     pendingCovers.value = nextCovers
+    // 待写回路径同样收敛（BIZ-030）
+    const nextPaths: Record<number, string> = {}
+    for (const [key, value] of Object.entries(pendingPaths.value)) {
+      if (existing.has(Number(key))) {
+        nextPaths[Number(key)] = value
+      }
+    }
+    pendingPaths.value = nextPaths
     if (selectedTrackId.value !== null && !existing.has(selectedTrackId.value)) {
       selectedTrackId.value = null
     }
@@ -324,12 +335,24 @@ export function useWorkspace() {
   })
 
   /**
-   * 按碟号分组重新分配音轨号（FR-3、BIZ-003）：每个分组内自 1 起连续编号；
-   * 缺少碟号的曲目不参与编号（由弹窗提示并询问）。
+   * 重新分配音轨号（FR-3、BIZ-003）：
+   * - 不传 `discNumber`：按各曲目已有碟号分组（升序），每组内自 1 起连续编号，缺碟号者不参与；
+   * - 传 `discNumber`：把范围内全部曲目的碟号统一设为该值，整个范围自 1 起连续编号。
    *
    * @returns 未参与编号（缺碟号）的曲目数
    */
-  const renumberTracks = (autoFillTotal: boolean): number => {
+  const renumberTracks = (autoFillTotal: boolean, discNumber?: number | null): number => {
+    const scope = operationScope.value
+    if (discNumber !== undefined && discNumber !== null) {
+      const total = scope.length
+      scope.forEach((track, idx) => {
+        const number = idx + 1
+        track.tags.discNo = String(discNumber)
+        track.tags.trackNo = autoFillTotal ? `${number}/${total}` : `${number}`
+        refreshStatus(track)
+      })
+      return 0
+    }
     const { entries, missing } = renumberGroups.value
     entries.forEach((group) => {
       const total = group.tracks.length
@@ -498,6 +521,11 @@ export function useWorkspace() {
       delete next[trackId]
       pendingCovers.value = next
     }
+    if (pendingPaths.value[trackId] !== undefined) {
+      const next = { ...pendingPaths.value }
+      delete next[trackId]
+      pendingPaths.value = next
+    }
     if (track) {
       refreshStatus(track)
     }
@@ -506,8 +534,9 @@ export function useWorkspace() {
   const rollbackAll = () => {
     // 顺序先恢复为导入顺序（曲目 id 按导入递增，升序即导入顺序），再恢复首次快照（BIZ-008 / BIZ-006）
     tracks.value = [...tracks.value].sort((a, b) => a.id - b.id)
-    // 封面同属媒体字段编辑态，回滚一并丢弃待写回值（BIZ-020 / BIZ-021）
+    // 封面与路径同属编辑态，回滚一并丢弃（BIZ-020 / BIZ-021 / BIZ-030）
     pendingCovers.value = {}
+    pendingPaths.value = {}
     tracks.value.forEach((t) => {
       if (t.status !== 'failed') {
         t.tags = cloneTags(t.initialSnapshot)
@@ -533,7 +562,8 @@ export function useWorkspace() {
         targets.map((t) => ({
           id: t.id,
           tags: cloneTags(t.tags),
-          cover: pendingCovers.value[t.id] === undefined ? null : pendingCovers.value[t.id]
+          cover: pendingCovers.value[t.id] === undefined ? null : pendingCovers.value[t.id],
+          targetPath: pendingPaths.value[t.id] ?? null
         }))
       )
       lastWriteOutcomes.value = result.outcomes
@@ -547,7 +577,7 @@ export function useWorkspace() {
     }
   }
 
-  /** 按写回结果收敛状态：成功项刷新最近落盘值并清待写回封面；其余保留待提交并附原因。 */
+  /** 按写回结果收敛状态：成功项刷新最近落盘值并清待提交媒体/路径；其余保留待提交并附原因。 */
   const applyWriteOutcomes = (outcomes: WriteOutcomeItem[]): void => {
     const byId = new Map(outcomes.map((o) => [o.id, o]))
     tracks.value.forEach((t) => {
@@ -558,12 +588,21 @@ export function useWorkspace() {
           applyWrittenMetadata(t, outcome.tags)
         }
         t.hasCover = outcome.hasCover
-        if (pendingCovers.value[t.id] !== undefined) {
-          const next = { ...pendingCovers.value }
-          delete next[t.id]
-          pendingCovers.value = next
+        if (outcome.filePath) {
+          t.filePath = outcome.filePath
         }
+        deletePending(t.id)
         t.failureReason = undefined
+        refreshStatus(t)
+        return
+      }
+      if (outcome.outcome === 'partial') {
+        // 标签已写、路径未改：刷新标签落盘值，路径仍属待提交差异（DEV-003 结论 2）
+        if (outcome.tags) {
+          applyWrittenMetadata(t, outcome.tags)
+        }
+        t.hasCover = outcome.hasCover
+        t.failureReason = outcome.reason || '路径变更失败，标签已写'
         refreshStatus(t)
         return
       }
@@ -573,6 +612,20 @@ export function useWorkspace() {
         t.status = 'failed'
       }
     })
+  }
+
+  /** 清除某曲目的待写回封面与路径（写回成功后）。 */
+  const deletePending = (trackId: number): void => {
+    if (pendingCovers.value[trackId] !== undefined) {
+      const next = { ...pendingCovers.value }
+      delete next[trackId]
+      pendingCovers.value = next
+    }
+    if (pendingPaths.value[trackId] !== undefined) {
+      const next = { ...pendingPaths.value }
+      delete next[trackId]
+      pendingPaths.value = next
+    }
   }
 
   /** 用磁盘实际值刷新最近落盘值的 12 个元数据字段（歌词未写回，保持不变）。 */
@@ -585,28 +638,94 @@ export function useWorkspace() {
   }
 
   /**
-   * 加载重命名/归档预览（FR-7、BIZ-029）：以当前选区（未选则全部可编辑曲目）与当前顺序提交
-   * 「音轨号 + 标题」，由后端按内置模板规划目标路径与冲突；`rootDir` 为空表示保持各自当前目录。
+   * 加载重命名/归档预览（FR-7、BIZ-030）：按模板与当前顺序提交所需字段，
+   * 由后端规划目标路径与冲突；结果仅用于预览，不写入待写回态。
    */
-  const loadRenamePreview = async (rootDir: string | null): Promise<void> => {
-    const scope = operationScope.value
-    if (scope.length === 0) {
-      renamePreview.value = []
-      return
-    }
+  const loadRenamePreview = async (
+    options: RenamePreviewOptions,
+    scope: TrackItem[] = operationScope.value
+  ): Promise<RenamePlanItem[]> => {
     previewingRename.value = true
     try {
       const result = await previewRename(
-        rootDir,
-        scope.map((t) => ({ id: t.id, trackNo: t.tags.trackNo, title: t.tags.title }))
+        options,
+        scope.map((t) => ({
+          id: t.id,
+          trackNo: t.tags.trackNo,
+          title: t.tags.title,
+          artist: t.tags.artist,
+          albumArtist: t.tags.albumArtist,
+          album: t.tags.album,
+          discNo: t.tags.discNo,
+          year: t.tags.year
+        }))
       )
       renamePreview.value = result.items
       importError.value = null
+      return result.items
     } catch (error) {
       importError.value = error instanceof Error ? error.message : String(error)
       renamePreview.value = []
+      return []
     } finally {
       previewingRename.value = false
+    }
+  }
+
+  /** 把预览中发生变化的项写入待写回路径态（内存，不落盘）（BIZ-030）。返回变更项数。 */
+  const applyRenamePlan = (items: RenamePlanItem[]): number => {
+    const next = { ...pendingPaths.value }
+    items.forEach((item) => {
+      if (item.changed) {
+        next[item.id] = item.newPath
+      } else {
+        delete next[item.id]
+      }
+    })
+    pendingPaths.value = next
+    const touched = new Set(items.map((item) => item.id))
+    tracks.value.filter((t) => touched.has(t.id)).forEach((t) => refreshStatus(t))
+    return items.filter((item) => item.changed).length
+  }
+
+  /**
+   * 立即执行归档（BIZ-030）：**直接移动文件、不经过待写回态**。
+   *
+   * <p>只在工作区无未写回内容时调用（归档入口已做禁用与守卫）。提交每首变更曲目的完整当前值与目标路径，
+   * 后端按落盘基线自算差异（标签无变化，等同只做移动）；执行后文件**保留在工作区**并更新为新的路径与状态。
+   */
+  const commitArchive = async (items: RenamePlanItem[]): Promise<WriteOutcomeItem[]> => {
+    const changed = items.filter((item) => item.changed)
+    if (changed.length === 0) {
+      return []
+    }
+    const byId = new Map(tracks.value.map((t) => [t.id, t]))
+    const commands = changed.flatMap((item) => {
+      const track = byId.get(item.id)
+      if (!track) {
+        return []
+      }
+      return [
+        {
+          id: track.id,
+          tags: cloneTags(track.tags),
+          cover: pendingCovers.value[track.id] === undefined ? null : pendingCovers.value[track.id],
+          targetPath: item.newPath
+        }
+      ]
+    })
+    writing.value = true
+    try {
+      const result = await commitWriteBack(commands)
+      lastWriteOutcomes.value = result.outcomes
+      applyWriteOutcomes(result.outcomes)
+      importError.value = null
+      return result.outcomes
+    } catch (error) {
+      importError.value = error instanceof Error ? error.message : String(error)
+      return []
+    } finally {
+      writing.value = false
     }
   }
 
@@ -653,6 +772,9 @@ export function useWorkspace() {
     writing,
     renamePreview,
     previewingRename,
-    loadRenamePreview
+    loadRenamePreview,
+    applyRenamePlan,
+    commitArchive,
+    pendingPaths
   }
 }

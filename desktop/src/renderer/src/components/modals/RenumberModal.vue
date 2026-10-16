@@ -13,17 +13,22 @@ const { operationScope, renumberGroups, renumberTracks } = useWorkspace()
 const autoFillTotal = ref(true)
 /** 存在缺碟号曲目时，是否对其余曲目继续编号（BIZ-003）。 */
 const continueAfterMissing = ref(true)
+/** 可选项：添加/更改碟号（BIZ-030）——勾选则把范围内全部曲目的碟号统一设为该值。 */
+const setDisc = ref(false)
+const discNumber = ref(1)
 
 const groups = computed(() => renumberGroups.value.entries)
 const missing = computed(() => renumberGroups.value.missing)
 const numberedCount = computed(() => groups.value.reduce((sum, group) => sum + group.tracks.length, 0))
 
-const canApply = computed(
-  () => groups.value.length > 0 && (missing.value.length === 0 || continueAfterMissing.value)
+const canApply = computed(() =>
+  setDisc.value
+    ? operationScope.value.length > 0
+    : groups.value.length > 0 && (missing.value.length === 0 || continueAfterMissing.value)
 )
 
 const handleConfirm = () => {
-  renumberTracks(autoFillTotal.value)
+  renumberTracks(autoFillTotal.value, setDisc.value ? discNumber.value : null)
   emit('close')
 }
 </script>
@@ -35,14 +40,17 @@ const handleConfirm = () => {
         <span>{{ missing.length > 0 ? '⚠️' : 'ℹ️' }}</span>
         <div class="banner-text">
           <strong>按碟号分组，组内自 1 起连续编号</strong>
-          <p>
+          <p v-if="!setDisc">
             作用范围为 {{ operationScope.length }} 首曲目，按各自碟号分成 {{ groups.length }} 组；碟号仅作分组依据，不会被改写。
+          </p>
+          <p v-else>
+            作用范围为 {{ operationScope.length }} 首曲目，将统一碟号并作为一组自 1 起编号。
           </p>
         </div>
       </div>
 
-      <!-- 分组预览 -->
-      <div class="group-list">
+      <!-- 分组预览（不勾选改碟号时） -->
+      <div v-if="!setDisc" class="group-list">
         <div v-if="groups.length === 0" class="empty-hint">范围内没有含碟号的曲目。</div>
         <div v-for="group in groups" :key="group.disc" class="group-row">
           <span class="disc-chip">Disc {{ group.disc }}</span>
@@ -55,7 +63,7 @@ const handleConfirm = () => {
       </div>
 
       <!-- 缺碟号提示与询问 -->
-      <div v-if="missing.length > 0" class="missing-block">
+      <div v-if="!setDisc && missing.length > 0" class="missing-block">
         <div class="missing-title">以下 {{ missing.length }} 首曲目缺少碟号，将<strong>不参与编号</strong>：</div>
         <div class="missing-names">
           <span v-for="track in missing" :key="track.id" class="missing-name" :title="track.filePath">
@@ -68,10 +76,23 @@ const handleConfirm = () => {
         </label>
       </div>
 
+      <!-- 可选：添加 / 更改碟号（BIZ-030） -->
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input v-model="setDisc" type="checkbox" />
+          <span>添加 / 更改碟号（把范围内全部曲目统一设为该碟号）</span>
+        </label>
+        <div v-if="setDisc" class="disc-input-row">
+          <label>碟号：</label>
+          <input v-model.number="discNumber" type="number" min="1" max="99" class="input disc-input" />
+          <span class="hint">共 {{ operationScope.length }} 首将作为一组，自 1 起连续编号。</span>
+        </div>
+      </div>
+
       <div class="form-group checkbox-group">
         <label class="checkbox-label">
           <input v-model="autoFillTotal" type="checkbox" />
-          <span>自动将总曲目数写入音轨号（<code>组内序号/组内总数</code>）</span>
+          <span>自动将总曲目数写入音轨号（<code>序号/总数</code>）</span>
         </label>
       </div>
     </div>
@@ -181,6 +202,30 @@ const handleConfirm = () => {
 
 .checkbox-group {
   margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.disc-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-left: 22px;
+}
+
+.disc-input-row label {
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.disc-input {
+  width: 84px;
+}
+
+.hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
 }
 
 .checkbox-label {

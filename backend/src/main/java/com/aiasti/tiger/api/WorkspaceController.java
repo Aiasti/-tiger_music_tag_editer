@@ -64,10 +64,10 @@ public class WorkspaceController {
         return writeBackService.writeAll(request.tracks());
     }
 
-    /** 重命名/归档预览（FR-7、BIZ-029）：按当前编辑值规划目标路径与冲突标注，不移动文件。 */
+    /** 重命名/归档预览（FR-7、BIZ-030）：按当前编辑值与模板规划目标路径与冲突标注，不移动文件。 */
     @PostMapping("/rename-preview")
     public RenamePlan renamePreview(@RequestBody RenamePreviewRequest request) {
-        return renamePreviewService.preview(request.rootDir(), request.tracks());
+        return renamePreviewService.preview(request);
     }
 
     /** 取曲目内嵌封面；无封面返回 404（按需获取，避免列表返回体积膨胀）。 */

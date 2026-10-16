@@ -3,6 +3,7 @@ package com.aiasti.tiger.api;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** S3-1 验证：重命名预览接口（FR-7、BIZ-029）——按当前编辑值规划目标名且不改动磁盘。 */
+/** S3-1 验证：重命名/归档预览接口（FR-7、BIZ-030）——按模板与当前编辑值规划目标名且不改动磁盘。 */
 @SpringBootTest(properties = "app.security.token=test-token")
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -28,7 +29,7 @@ class WorkspaceRenamePreviewTest {
     private MockMvc mockMvc;
 
     @Test
-    void previewPlansTemplateNameWithoutTouchingDisk(@TempDir Path dir) throws Exception {
+    void previewRenamePlansTemplateNameWithoutTouchingDisk(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("track.mp3");
         Files.copy(SAMPLES.resolve("sample.mp3"), file);
         long id = importTrack(file);
@@ -36,14 +37,40 @@ class WorkspaceRenamePreviewTest {
         mockMvc.perform(post("/api/workspace/rename-preview")
                         .header("X-App-Token", TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"rootDir\":null,\"tracks\":[{\"id\":" + id
-                                + ",\"trackNo\":\"1\",\"title\":\"Hello\"}]}"))
+                        .content("{\"mode\":\"rename\",\"nameTemplate\":\"%track% %title%\","
+                                + "\"dirTemplate\":null,\"rootDir\":null,\"archiveMode\":null,"
+                                + "\"tracks\":[{\"id\":" + id + ",\"trackNo\":\"1\",\"title\":\"Hello\"}]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].newName").value("1 Hello.mp3"))
                 .andExpect(jsonPath("$.items[0].changed").value(true))
                 .andExpect(jsonPath("$.items[0].oldName").value("track.mp3"));
 
-        org.junit.jupiter.api.Assertions.assertTrue(Files.exists(file), "预览不应改动磁盘");
+        Assertions.assertTrue(Files.exists(file), "预览不应改动磁盘");
+    }
+
+    @Test
+    void previewArchivePlansSubdirectoryWithoutTouchingDisk(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("track.mp3");
+        Files.copy(SAMPLES.resolve("sample.mp3"), file);
+        long id = importTrack(file);
+        Path root = Files.createDirectories(dir.resolve("library"));
+        String escapedRoot = root.toAbsolutePath().toString().replace("\\", "\\\\");
+
+        mockMvc.perform(post("/api/workspace/rename-preview")
+                        .header("X-App-Token", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"archive\",\"nameTemplate\":null,"
+                                + "\"dirTemplate\":\"%albumArtist%/%album%\",\"rootDir\":\"" + escapedRoot + "\","
+                                + "\"archiveMode\":\"template\","
+                                + "\"tracks\":[{\"id\":" + id
+                                + ",\"albumArtist\":\"AA\",\"album\":\"Album X\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].newName").value("track.mp3"))
+                .andExpect(jsonPath("$.items[0].changed").value(true))
+                .andExpect(jsonPath("$.items[0].newPath")
+                        .value(root.resolve("AA").resolve("Album X").resolve("track.mp3").toString()));
+
+        Assertions.assertTrue(Files.exists(file), "预览不应改动磁盘");
     }
 
     private long importTrack(Path file) throws Exception {
@@ -60,6 +87,6 @@ class WorkspaceRenamePreviewTest {
         while (end < body.length() && Character.isDigit(body.charAt(end))) {
             end++;
         }
-        return Long.parseLong(body.substring(start, end));
+        return Long.parseLong(body, start, end, 10);
     }
 }

@@ -7,8 +7,10 @@ package com.aiasti.tiger.application.workspace;
  */
 public enum WriteOutcomeStatus {
 
-    /** 已写回：标签已写入并通过校验。 */
+    /** 已写回：标签已写入并通过校验（含路径变更已完成）。 */
     WRITTEN("written"),
+    /** 部分完成：标签已写、路径未改（移动/重命名失败，文件停在原路径）。 */
+    PARTIAL("partial"),
     /** 未执行：文件被执行前被外部修改，按 DEV-003 结论 1 阻止该文件。 */
     STALE("stale"),
     /** 未执行：预检或恢复材料准备未通过。 */

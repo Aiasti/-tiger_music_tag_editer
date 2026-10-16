@@ -94,6 +94,14 @@ public class Workspace {
         sequence = 0;
     }
 
+    /** 路径变更（重命名/归档）后重建索引，使去重与查找按新路径生效（BIZ-030）。 */
+    public synchronized void reindex() {
+        Map<String, Track> rebuilt = new LinkedHashMap<>();
+        tracks.values().forEach(track -> rebuilt.put(key(track.path()), track));
+        tracks.clear();
+        tracks.putAll(rebuilt);
+    }
+
     private static String key(Path path) {
         return path.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
     }

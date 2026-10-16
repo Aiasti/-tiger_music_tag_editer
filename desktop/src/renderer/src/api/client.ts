@@ -64,12 +64,14 @@ export function clearWorkspace(): Promise<WorkspaceView> {
   return request<WorkspaceView>('/api/workspace/clear', { method: 'POST' })
 }
 
-/** 单首曲目的写回提交内容（BIZ-028）：整份当前标签值 + 封面意图。 */
+/** 单首曲目的写回提交内容（BIZ-028、BIZ-030）：整份当前标签值 + 封面意图 + 可选目标路径。 */
 export interface WriteCommandItem {
   id: number
   tags: TrackTagData
   /** null=保持现状、""=移除封面、否则为 data URL。 */
   cover: string | null
+  /** 重命名/归档产生的目标完整路径（后端字段名 `targetPath`）；null 表示不改路径。 */
+  targetPath: string | null
 }
 
 /** 写回结果（与提交清单同序）。 */
@@ -77,7 +79,7 @@ export interface WriteBackResult {
   outcomes: WriteOutcomeItem[]
 }
 
-/** 写回标签到磁盘（FR-8、DEV-003、BIZ-028）：后端按落盘基线自算差异并逐文件五阶段执行。 */
+/** 写回标签到磁盘（FR-8、DEV-003、BIZ-028、BIZ-030）：后端按落盘基线自算差异并逐文件执行。 */
 export function commitWriteBack(tracks: WriteCommandItem[]): Promise<WriteBackResult> {
   return request<WriteBackResult>('/api/workspace/commit', {
     method: 'POST',
@@ -85,14 +87,35 @@ export function commitWriteBack(tracks: WriteCommandItem[]): Promise<WriteBackRe
   })
 }
 
-/** 重命名/归档预览（FR-7、BIZ-029）：按当前编辑值规划目标路径，不移动文件。 */
+/** 重命名/归档预览的入参（BIZ-030）。 */
+export interface RenamePreviewOptions {
+  mode: 'rename' | 'archive'
+  nameTemplate?: string | null
+  dirTemplate?: string | null
+  rootDir?: string | null
+  archiveMode?: 'keep' | 'flat' | 'template' | null
+}
+
+/** 模板渲染所需字段。 */
+export interface RenamePreviewTrack {
+  id: number
+  trackNo?: string
+  title?: string
+  artist?: string
+  albumArtist?: string
+  album?: string
+  discNo?: string
+  year?: string
+}
+
+/** 重命名/归档预览（FR-7、BIZ-030）：按当前编辑值与模板规划目标路径，不移动文件。 */
 export function previewRename(
-  rootDir: string | null,
-  tracks: { id: number; trackNo: string; title: string }[]
+  options: RenamePreviewOptions,
+  tracks: RenamePreviewTrack[]
 ): Promise<{ items: RenamePlanItem[] }> {
   return request<{ items: RenamePlanItem[] }>('/api/workspace/rename-preview', {
     method: 'POST',
-    body: JSON.stringify({ rootDir, tracks })
+    body: JSON.stringify({ ...options, tracks })
   })
 }
 
