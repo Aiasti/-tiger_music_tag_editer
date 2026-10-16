@@ -49,7 +49,6 @@ export interface ColumnDefinition {
 
 export type ModalType =
   | 'skip-list'
-  | 'renumber'
   | 'renumber-confirm'
   | 'batch-edit'
   | 'online-match'

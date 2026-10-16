@@ -62,7 +62,7 @@ onMounted(async () => {
 
     <!-- 交互模态体系挂载 -->
     <SkipListModal v-if="activeModal === 'skip-list'" @close="closeModal" />
-    <RenumberModal v-if="activeModal === 'renumber'" @close="closeModal" />
+    <RenumberModal v-if="activeModal === 'renumber-confirm'" @close="closeModal" />
     <BatchEditModal v-if="activeModal === 'batch-edit'" @close="closeModal" />
     <OnlineMatchModal v-if="activeModal === 'online-match'" @close="closeModal" />
     <LyricsSearchModal v-if="activeModal === 'lyrics-search'" @close="closeModal" />
