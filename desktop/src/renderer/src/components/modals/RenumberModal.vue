@@ -1,68 +1,86 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
+import { trackBaseName } from '../../utils/trackText'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { selectedTracks, renumberTracks } = useWorkspace()
+const { operationScope, renumberGroups, renumberTracks } = useWorkspace()
 
-const discNumber = ref(1)
-const startTrack = ref(1)
 const autoFillTotal = ref(true)
+/** 存在缺碟号曲目时，是否对其余曲目继续编号（BIZ-003）。 */
+const continueAfterMissing = ref(true)
+
+const groups = computed(() => renumberGroups.value.entries)
+const missing = computed(() => renumberGroups.value.missing)
+const numberedCount = computed(() => groups.value.reduce((sum, group) => sum + group.tracks.length, 0))
+
+const canApply = computed(
+  () => groups.value.length > 0 && (missing.value.length === 0 || continueAfterMissing.value)
+)
 
 const handleConfirm = () => {
-  renumberTracks(discNumber.value, startTrack.value, autoFillTotal.value)
+  renumberTracks(autoFillTotal.value)
   emit('close')
 }
 </script>
 
 <template>
-  <ModalContainer title="🔢 重新编号与碟号处理 (BIZ-003)" max-width="520px" @close="emit('close')">
+  <ModalContainer title="🔢 按碟号分组编号 (FR-3 / BIZ-003)" max-width="560px" @close="emit('close')">
     <div class="modal-body-form">
-      <div class="banner warning">
-        <span>⚠️</span>
+      <div class="banner" :class="missing.length > 0 ? 'warning' : 'info'">
+        <span>{{ missing.length > 0 ? '⚠️' : 'ℹ️' }}</span>
         <div class="banner-text">
-          <strong>检测到选中曲目缺少光盘编号</strong>
-          <p>当前选中了 {{ selectedTracks.length }} 首曲目。按 BIZ-003 规则，建议明确指定目标光盘编号或使用默认值 1，避免多碟专辑曲目顺序错乱。</p>
+          <strong>按碟号分组，组内自 1 起连续编号</strong>
+          <p>
+            作用范围为 {{ operationScope.length }} 首曲目，按各自碟号分成 {{ groups.length }} 组；碟号仅作分组依据，不会被改写。
+          </p>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>目标光盘编号 (Disc No.)</label>
-        <div class="input-with-desc">
-          <input v-model.number="discNumber" type="number" min="1" max="99" class="input" />
-          <span class="hint">若为单碟专辑保持为 1；多碟请指定实际盘号（例如 2）。</span>
+      <!-- 分组预览 -->
+      <div class="group-list">
+        <div v-if="groups.length === 0" class="empty-hint">范围内没有含碟号的曲目。</div>
+        <div v-for="group in groups" :key="group.disc" class="group-row">
+          <span class="disc-chip">Disc {{ group.disc }}</span>
+          <span class="group-count">{{ group.tracks.length }} 首</span>
+          <span class="group-range">
+            编号 1{{ autoFillTotal ? '/' + group.tracks.length : '' }} …
+            {{ group.tracks.length }}{{ autoFillTotal ? '/' + group.tracks.length : '' }}
+          </span>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>起始音轨号 (Start Track)</label>
-        <div class="input-with-desc">
-          <input v-model.number="startTrack" type="number" min="1" max="999" class="input" />
-          <span class="hint">曲目将按当前列表自上而下顺次递增编号。</span>
+      <!-- 缺碟号提示与询问 -->
+      <div v-if="missing.length > 0" class="missing-block">
+        <div class="missing-title">以下 {{ missing.length }} 首曲目缺少碟号，将<strong>不参与编号</strong>：</div>
+        <div class="missing-names">
+          <span v-for="track in missing" :key="track.id" class="missing-name" :title="track.filePath">
+            {{ trackBaseName(track) }}
+          </span>
         </div>
+        <label class="checkbox-label">
+          <input v-model="continueAfterMissing" type="checkbox" />
+          <span>对其余 {{ numberedCount }} 首曲目继续编号</span>
+        </label>
       </div>
 
       <div class="form-group checkbox-group">
         <label class="checkbox-label">
           <input v-model="autoFillTotal" type="checkbox" />
-          <span>自动将总曲目数设置为选中数量 ({{ selectedTracks.length }})</span>
+          <span>自动将总曲目数写入音轨号（<code>组内序号/组内总数</code>）</span>
         </label>
-      </div>
-
-      <div class="preview-box">
-        <span class="preview-label">编号效果预览：</span>
-        <code>第 1 首：{{ startTrack }}/{{ autoFillTotal ? selectedTracks.length : '?' }} (Disc {{ discNumber }})</code>
-        <code v-if="selectedTracks.length > 1">... 第 {{ selectedTracks.length }} 首：{{ startTrack + selectedTracks.length - 1 }}/{{ autoFillTotal ? selectedTracks.length : '?' }} (Disc {{ discNumber }})</code>
       </div>
     </div>
 
     <template #footer>
       <button class="btn" @click="emit('close')">取消</button>
-      <button class="btn primary" @click="handleConfirm">应用编号并标记修改</button>
+      <button class="btn primary" :disabled="!canApply" @click="handleConfirm">
+        应用编号并标记修改
+      </button>
     </template>
   </ModalContainer>
 </template>
@@ -79,14 +97,15 @@ const handleConfirm = () => {
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
   font-size: var(--font-sm);
   line-height: 1.5;
+  background: var(--bg-hover);
 }
 
 .banner.warning {
   background: var(--warning-dim);
-  border: 1px solid var(--warning);
-  color: var(--text-main);
+  border-color: var(--warning);
 }
 
 .banner-text p {
@@ -94,27 +113,70 @@ const handleConfirm = () => {
   color: var(--text-muted);
 }
 
-.form-group {
+.group-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.form-group label {
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   font-size: var(--font-sm);
-  font-weight: 600;
-  color: var(--text-main);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
 }
 
-.input-with-desc {
+.disc-chip {
+  color: var(--accent);
+  font-weight: 600;
+  min-width: 72px;
+}
+
+.group-count {
+  color: var(--text-muted);
+}
+
+.group-range {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.missing-block {
+  border: 1px solid var(--warning);
+  background: var(--warning-dim);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+.missing-title {
+  font-size: var(--font-sm);
+}
+
+.missing-names {
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
-.hint {
-  font-size: var(--font-xs);
+.missing-name {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
   color: var(--text-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .checkbox-group {
@@ -130,23 +192,13 @@ const handleConfirm = () => {
   user-select: none;
 }
 
-.preview-box {
-  background: var(--bg-hover);
-  border: 1px dashed var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-xs);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.preview-label {
-  color: var(--text-muted);
-}
-
-.preview-box code {
-  color: var(--accent);
+.checkbox-label code {
   font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.empty-hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
 }
 </style>

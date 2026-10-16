@@ -1,4 +1,4 @@
-import type { TrackItem, SkipItem, TrackTagData, WriteOutcomeItem } from '../types'
+import type { TrackItem, SkipItem, TrackTagData, WriteOutcomeItem, RenamePlanItem } from '../types'
 
 /** 后端返回的曲目视图：不含渲染层独有的「最近成功落盘值」（DEV-002、BIZ-026）。 */
 export type TrackApiItem = Omit<TrackItem, 'lastWritten'>
@@ -82,6 +82,17 @@ export function commitWriteBack(tracks: WriteCommandItem[]): Promise<WriteBackRe
   return request<WriteBackResult>('/api/workspace/commit', {
     method: 'POST',
     body: JSON.stringify({ tracks })
+  })
+}
+
+/** 重命名/归档预览（FR-7、BIZ-029）：按当前编辑值规划目标路径，不移动文件。 */
+export function previewRename(
+  rootDir: string | null,
+  tracks: { id: number; trackNo: string; title: string }[]
+): Promise<{ items: RenamePlanItem[] }> {
+  return request<{ items: RenamePlanItem[] }>('/api/workspace/rename-preview', {
+    method: 'POST',
+    body: JSON.stringify({ rootDir, tracks })
   })
 }
 

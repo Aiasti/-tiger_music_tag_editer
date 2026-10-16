@@ -5,13 +5,15 @@ import type {
   EditableTagField,
   ColumnDefinition,
   SkipItem,
-  WriteOutcomeItem
+  WriteOutcomeItem,
+  RenamePlanItem
 } from '../types'
 import {
   clearWorkspace as clearWorkspaceApi,
   commitWriteBack,
   fetchWorkspace,
   importPaths,
+  previewRename,
   removeTracks,
   type WorkspaceView
 } from '../api/client'
@@ -52,6 +54,10 @@ const pendingCovers = ref<Record<number, string>>({})
 const lastWriteOutcomes = ref<WriteOutcomeItem[]>([])
 /** 写回进行中标记。 */
 const writing = ref(false)
+/** 重命名/归档预览结果（FR-7、BIZ-029）。 */
+const renamePreview = ref<RenamePlanItem[]>([])
+/** 重命名预览加载中标记。 */
+const previewingRename = ref(false)
 
 /** 可写回的 12 个元数据字段（S2-2 不含歌词，歌词帧映射属 DEV-005）。 */
 const METADATA_FIELDS: EditableTagField[] = [
@@ -291,16 +297,49 @@ export function useWorkspace() {
     }
   }
 
-  // 重新编号与碟号处理 (BIZ-003)；作用于当前选区（BIZ-015）
-  const renumberTracks = (discNumber: number, startTrack: number, autoFillTotal: boolean) => {
-    const list = operationScope.value
-    const totalCount = list.length
-    list.forEach((track, idx) => {
-      const curTrackNum = startTrack + idx
-      track.tags.trackNo = autoFillTotal ? `${curTrackNum}/${totalCount}` : `${curTrackNum}`
-      track.tags.discNo = `${discNumber}`
-      refreshStatus(track)
+  /**
+   * 按碟号对当前范围分组（FR-3、BIZ-003）：供编号预览；缺少碟号的曲目单列（不参与编号）。
+   * 碟号只作分组依据，编号不修改碟号本身。
+   */
+  const renumberGroups = computed(() => {
+    const entries: { disc: string; tracks: TrackItem[] }[] = []
+    const index = new Map<string, number>()
+    const missing: TrackItem[] = []
+    operationScope.value.forEach((track) => {
+      const disc = (track.tags.discNo ?? '').trim()
+      if (disc === '') {
+        missing.push(track)
+        return
+      }
+      const at = index.get(disc)
+      if (at === undefined) {
+        index.set(disc, entries.length)
+        entries.push({ disc, tracks: [track] })
+      } else {
+        entries[at].tracks.push(track)
+      }
     })
+    entries.sort((a, b) => a.disc.localeCompare(b.disc, undefined, { numeric: true }))
+    return { entries, missing }
+  })
+
+  /**
+   * 按碟号分组重新分配音轨号（FR-3、BIZ-003）：每个分组内自 1 起连续编号；
+   * 缺少碟号的曲目不参与编号（由弹窗提示并询问）。
+   *
+   * @returns 未参与编号（缺碟号）的曲目数
+   */
+  const renumberTracks = (autoFillTotal: boolean): number => {
+    const { entries, missing } = renumberGroups.value
+    entries.forEach((group) => {
+      const total = group.tracks.length
+      group.tracks.forEach((track, idx) => {
+        const number = idx + 1
+        track.tags.trackNo = autoFillTotal ? `${number}/${total}` : `${number}`
+        refreshStatus(track)
+      })
+    })
+    return missing.length
   }
 
   // 批量更新标签 (FR-4)；作用于当前选区（BIZ-015）
@@ -545,6 +584,32 @@ export function useWorkspace() {
     track.lastWritten = next
   }
 
+  /**
+   * 加载重命名/归档预览（FR-7、BIZ-029）：以当前选区（未选则全部可编辑曲目）与当前顺序提交
+   * 「音轨号 + 标题」，由后端按内置模板规划目标路径与冲突；`rootDir` 为空表示保持各自当前目录。
+   */
+  const loadRenamePreview = async (rootDir: string | null): Promise<void> => {
+    const scope = operationScope.value
+    if (scope.length === 0) {
+      renamePreview.value = []
+      return
+    }
+    previewingRename.value = true
+    try {
+      const result = await previewRename(
+        rootDir,
+        scope.map((t) => ({ id: t.id, trackNo: t.tags.trackNo, title: t.tags.title }))
+      )
+      renamePreview.value = result.items
+      importError.value = null
+    } catch (error) {
+      importError.value = error instanceof Error ? error.message : String(error)
+      renamePreview.value = []
+    } finally {
+      previewingRename.value = false
+    }
+  }
+
   return {
     tracks,
     skipped,
@@ -579,11 +644,15 @@ export function useWorkspace() {
     applyMatchedTags,
     batchUpdateTags,
     batchApplyLyrics,
+    renumberGroups,
     renumberTracks,
     rollbackTrack,
     rollbackAll,
     commitAllWrites,
     lastWriteOutcomes,
-    writing
+    writing,
+    renamePreview,
+    previewingRename,
+    loadRenamePreview
   }
 }

@@ -91,11 +91,16 @@ export interface SkipItem {
   reason: string
 }
 
-export interface RenamePreviewItem {
+/** 重命名预览项（FR-7、BIZ-029）；与后端 `RenamePlanItem` 契约一致。 */
+export interface RenamePlanItem {
   id: number
   oldPath: string
   newPath: string
-  hasConflict: boolean
+  oldName: string
+  newName: string
+  changed: boolean
+  adjusted: boolean
+  note?: string | null
 }
 
 export interface WriteDiffItem {

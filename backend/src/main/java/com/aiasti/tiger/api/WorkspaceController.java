@@ -13,21 +13,27 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.aiasti.tiger.application.ImportWorkspaceService;
 import com.aiasti.tiger.application.workspace.CoverData;
+import com.aiasti.tiger.application.workspace.RenamePlan;
+import com.aiasti.tiger.application.workspace.RenamePreviewService;
 import com.aiasti.tiger.application.workspace.WorkspaceView;
 import com.aiasti.tiger.application.workspace.WriteBackResult;
 import com.aiasti.tiger.application.workspace.WriteBackService;
 
-/** 工作区接口（FR-1）：导入、查询、移出曲目、内嵌封面与写回。api 层不直接读写文件，经 application 调用 domain 端口。 */
+/** 工作区接口（FR-1）：导入、查询、移出曲目、内嵌封面、写回与重命名预览。api 层不直接读写文件，经 application 调用 domain 端口。 */
 @RestController
 @RequestMapping("/api/workspace")
 public class WorkspaceController {
 
     private final ImportWorkspaceService importWorkspaceService;
     private final WriteBackService writeBackService;
+    private final RenamePreviewService renamePreviewService;
 
-    public WorkspaceController(ImportWorkspaceService importWorkspaceService, WriteBackService writeBackService) {
+    public WorkspaceController(ImportWorkspaceService importWorkspaceService,
+                               WriteBackService writeBackService,
+                               RenamePreviewService renamePreviewService) {
         this.importWorkspaceService = importWorkspaceService;
         this.writeBackService = writeBackService;
+        this.renamePreviewService = renamePreviewService;
     }
 
     @PostMapping("/import")
@@ -56,6 +62,12 @@ public class WorkspaceController {
     @PostMapping("/commit")
     public WriteBackResult commit(@RequestBody WriteBackRequest request) {
         return writeBackService.writeAll(request.tracks());
+    }
+
+    /** 重命名/归档预览（FR-7、BIZ-029）：按当前编辑值规划目标路径与冲突标注，不移动文件。 */
+    @PostMapping("/rename-preview")
+    public RenamePlan renamePreview(@RequestBody RenamePreviewRequest request) {
+        return renamePreviewService.preview(request.rootDir(), request.tracks());
     }
 
     /** 取曲目内嵌封面；无封面返回 404（按需获取，避免列表返回体积膨胀）。 */

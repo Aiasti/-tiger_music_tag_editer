@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 
@@ -7,81 +7,101 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { selectedTracks } = useWorkspace()
+const { operationScope, renamePreview, previewingRename, loadRenamePreview } = useWorkspace()
 
-const pattern = ref('%track% - %title%')
-const dirPattern = ref('%artist%/%album%')
-const enableDirMove = ref(false)
+/** 目标根目录；空表示保持各文件当前目录（BIZ-029，此时为纯重命名）。 */
+const rootDir = ref('')
+/** 防抖计时器：根目录输入变化后重新预览。 */
+let debounce: ReturnType<typeof setTimeout> | null = null
 
-const handleApplyRename = () => {
-  // 仅在内存标记或通知准备重命名，落地由后端执行
-  emit('close')
+const refresh = () => loadRenamePreview(rootDir.value.trim() === '' ? null : rootDir.value.trim())
+
+const onRootDirInput = () => {
+  if (debounce) {
+    clearTimeout(debounce)
+  }
+  debounce = setTimeout(refresh, 300)
+}
+
+onMounted(refresh)
+watch(operationScope, refresh)
+
+const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; cls: string } => {
+  if (!item.changed) {
+    return { label: '无需变更', cls: 'muted' }
+  }
+  if (item.adjusted) {
+    return { label: '因冲突调整', cls: 'warning' }
+  }
+  if (item.note) {
+    return { label: '批内顺序调整', cls: 'info' }
+  }
+  return { label: '就绪', cls: 'success' }
 }
 </script>
 
 <template>
-  <ModalContainer title="📂 文件重命名与目录归档预览 (FR-6)" max-width="840px" @close="emit('close')">
+  <ModalContainer title="🏷️ 重命名 / 归档预览 (FR-7)" max-width="880px" @close="emit('close')">
     <div class="rename-modal-body">
-      <!-- 规则配置栏 -->
-      <div class="pattern-config-card">
-        <div class="pattern-row">
-          <label>文件名命名模式：</label>
-          <input v-model="pattern" type="text" class="input pattern-input" />
-          <div class="tokens-hint">
-            常用占位符：<code>%track%</code> <code>%title%</code> <code>%artist%</code> <code>%album%</code> <code>%year%</code>
-          </div>
-        </div>
-
-        <div class="pattern-row checkbox-row">
-          <label class="checkbox-label">
-            <input v-model="enableDirMove" type="checkbox" />
-            <span>启用目录归档（自动按层级移动文件）</span>
-          </label>
-          <input
-            v-if="enableDirMove"
-            v-model="dirPattern"
-            type="text"
-            class="input dir-pattern-input"
-            placeholder="例如：%artist%/%album%"
-          />
+      <div class="banner">
+        <span>ℹ️</span>
+        <div class="banner-text">
+          <strong>内置固定命名模板：&lt;音轨号&gt; &lt;标题&gt;</strong>
+          <p>
+            首版只改变文件名并保留原扩展名；归档目录由「目标根目录」决定，留空表示保持文件当前目录（纯重命名）。
+            作用范围为 {{ operationScope.length }} 首曲目。
+          </p>
         </div>
       </div>
 
-      <!-- 预览表格 -->
+      <div class="root-row">
+        <label>目标根目录：</label>
+        <input
+          v-model="rootDir"
+          type="text"
+          class="input root-input"
+          placeholder="留空 = 保持各文件当前所在目录"
+          @input="onRootDirInput"
+        />
+        <button class="btn" :disabled="previewingRename" @click="refresh">重新预览</button>
+      </div>
+
       <div class="preview-table-wrapper">
         <table class="preview-table">
           <thead>
             <tr>
               <th style="width: 40px;">#</th>
-              <th>原文件路径 / 名称</th>
+              <th>当前文件名</th>
               <th style="width: 30px;"></th>
-              <th>重命名后目标路径 / 名称</th>
-              <th style="width: 80px;">状态</th>
+              <th>重命名后文件名</th>
+              <th style="width: 120px;">状态</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(track, idx) in selectedTracks" :key="track.id">
+            <tr v-for="(item, idx) in renamePreview" :key="item.id">
               <td>{{ idx + 1 }}</td>
-              <td class="cell-old-path" :title="track.filePath">{{ track.filename }}</td>
+              <td class="cell-old-path" :title="item.oldPath">{{ item.oldName }}</td>
               <td class="cell-arrow">➔</td>
-              <td class="cell-new-path">
-                <span v-if="enableDirMove" class="dir-prefix">{{ track.tags.artist }}/{{ track.tags.album }}/</span>
-                <span class="file-name">{{ track.tags.trackNo }} - {{ track.tags.title }}.{{ track.ext.toLowerCase() }}</span>
+              <td class="cell-new-path" :title="item.newPath">{{ item.newName }}</td>
+              <td>
+                <span class="badge" :class="statusOf(item).cls">{{ statusOf(item).label }}</span>
+                <span v-if="item.adjusted && item.note" class="note" :title="item.note">ⓘ</span>
               </td>
-              <td><span class="badge success">就绪</span></td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div class="rename-note">
-        * 重命名将在「💾 确认写回」阶段统一随标签修改一同提交文件系统执行。
+      <p v-if="previewingRename" class="rename-note">正在规划…</p>
+      <p v-else-if="renamePreview.length === 0" class="rename-note">没有可预览的曲目。</p>
+      <div v-else class="rename-note">
+        * 本片（S3-1）只做规划与预览，<strong>不会移动或重命名磁盘文件</strong>；实际执行在 S3-2 接入。
       </div>
     </div>
 
     <template #footer>
-      <button class="btn" @click="emit('close')">取消</button>
-      <button class="btn primary" @click="handleApplyRename">确认命名规则并应用</button>
+      <button class="btn" @click="emit('close')">关闭</button>
+      <button class="btn primary" disabled title="执行将在 S3-2 接入">应用重命名（S3-2 待接入）</button>
     </template>
   </ModalContainer>
 </template>
@@ -93,57 +113,36 @@ const handleApplyRename = () => {
   gap: var(--space-md);
 }
 
-.pattern-config-card {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-md);
+.banner {
   display: flex;
-  flex-direction: column;
   gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--info-dim, var(--bg-hover));
+  border: 1px solid var(--border-subtle);
+  font-size: var(--font-sm);
+  line-height: 1.5;
 }
 
-.pattern-row {
+.banner-text p {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+}
+
+.root-row {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
-.pattern-row label {
+.root-row label {
   font-size: var(--font-sm);
   font-weight: 600;
   white-space: nowrap;
 }
 
-.pattern-input {
+.root-input {
   flex: 1;
-  font-family: var(--font-mono);
-}
-
-.tokens-hint {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-}
-
-.tokens-hint code {
-  color: var(--accent);
-  margin-right: 4px;
-}
-
-.checkbox-row {
-  margin-top: 4px;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: var(--font-sm);
-  cursor: pointer;
-}
-
-.dir-pattern-input {
-  width: 260px;
   font-family: var(--font-mono);
 }
 
@@ -191,14 +190,44 @@ const handleApplyRename = () => {
 .cell-new-path {
   color: var(--accent);
   font-weight: 500;
-  max-width: 320px;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dir-prefix {
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10.5px;
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.badge.success {
+  color: var(--success, var(--text-main));
+  border-color: var(--success, var(--border-strong));
+}
+
+.badge.warning {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.badge.info {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.badge.muted {
   color: var(--text-muted);
+}
+
+.note {
+  margin-left: 4px;
+  color: var(--text-muted);
+  cursor: help;
 }
 
 .rename-note {

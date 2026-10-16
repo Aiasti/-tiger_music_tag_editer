@@ -125,7 +125,12 @@ const handleRollback = () => {
         <button class="action-chip" title="批量设置选中行的某一元数据字段 (FR-4)" @click="openModal('batch-edit')">
           批量编辑字段…
         </button>
-        <button class="action-chip" title="按选区与碟号连续分配音轨号，空选区时不可触发 (FR-3 / BIZ-003)" @click="openModal('renumber-confirm')">
+        <button
+          class="action-chip"
+          title="按选区与碟号连续分配音轨号；未选中范围时不可触发 (FR-3 / BIZ-003)"
+          :disabled="selectedTrackIds.length === 0"
+          @click="openModal('renumber-confirm')"
+        >
           按范围编号 1…N
         </button>
         <button class="action-chip" title="放弃未写回改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)" @click="handleRollback">
@@ -315,6 +320,10 @@ const handleRollback = () => {
   background: var(--surface-hover);
   border-color: var(--border-strong);
   color: var(--text-bright);
+}
+.action-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .action-chip .chip-dot {
   width: 6px;
