@@ -1,11 +1,10 @@
 package com.aiasti.tiger.infrastructure.tag;
 
-import com.aiasti.tiger.domain.exception.TagAccessException;
-import com.aiasti.tiger.domain.model.AudioMetadata;
-import com.aiasti.tiger.domain.model.ImageMimeTypes;
-import com.aiasti.tiger.domain.model.TagField;
-import com.aiasti.tiger.domain.model.TrackTags;
-import com.aiasti.tiger.domain.port.TagAccessPort;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Locale;
+import java.util.Set;
+
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.audio.exceptions.CannotReadException;
@@ -21,10 +20,12 @@ import org.jaudiotagger.tag.images.StandardArtwork;
 import org.jaudiotagger.tag.wav.WavTag;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Locale;
-import java.util.Set;
+import com.aiasti.tiger.domain.exception.TagAccessException;
+import com.aiasti.tiger.domain.model.AudioMetadata;
+import com.aiasti.tiger.domain.model.ImageMimeTypes;
+import com.aiasti.tiger.domain.model.TagField;
+import com.aiasti.tiger.domain.model.TrackTags;
+import com.aiasti.tiger.domain.port.TagAccessPort;
 
 /**
  * 基于 jaudiotagger 的标签读写适配器。
@@ -77,6 +78,8 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
                 artwork.setBinaryData(cover);
                 artwork.setMimeType(ImageMimeTypes.detect(cover));
                 tag.setField(artwork);
+            } else {
+                deleteArtworkQuietly(tag);
             }
             audioFile.commit();
         } catch (CannotReadException | IOException | TagException
@@ -138,6 +141,19 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
         if (tag instanceof WavTag wavTag && !wavTag.isExistingId3Tag()) {
             wavTag.setID3Tag(WavTag.createDefaultID3Tag());
             wavTag.setExistingId3Tag(true);
+        }
+    }
+
+    /**
+     * 清除内嵌封面；部分标签体系不支持删除封面字段，按无操作处理。
+     *
+     * <p>删除是否真正生效由写回校验（重新读取后比对封面）判定，不在适配层失败。
+     */
+    private static void deleteArtworkQuietly(Tag tag) {
+        try {
+            tag.deleteField(FieldKey.COVER_ART);
+        } catch (RuntimeException e) {
+            // 忽略：容器不支持删除封面时保持原状，交由写回校验处理
         }
     }
 }

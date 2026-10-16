@@ -106,3 +106,23 @@ export interface WriteDiffItem {
   oldPath: string
   newPath: string
 }
+
+/** 写回结果状态（DEV-003、BIZ-028）；与后端 `WriteOutcomeStatus` 契约值一致。 */
+export type WriteOutcomeStatus =
+  | 'written'
+  | 'stale'
+  | 'blocked'
+  | 'failed-restored'
+  | 'failed-manual'
+
+/** 单个曲目的写回结果。 */
+export interface WriteOutcomeItem {
+  id: number
+  outcome: WriteOutcomeStatus
+  reason?: string | null
+  detail?: string | null
+  /** 写入后磁盘上的实际标签值（仅 written 时有值）。 */
+  tags?: TrackTagData | null
+  filePath?: string | null
+  hasCover: boolean
+}

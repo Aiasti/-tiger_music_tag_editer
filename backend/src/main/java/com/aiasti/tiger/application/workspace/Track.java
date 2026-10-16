@@ -24,8 +24,8 @@ public final class Track {
     private final TrackTags firstSnapshot;
     private final long durationSeconds;
     /** 最近成功落盘值：导入成功时记录的文件指纹，写回成功后更新（DEV-002、DEV-003）。 */
-    private final DiskBaseline diskBaseline;
-    /** 当前编辑值：S1 阶段与快照相同，编辑能力在 S2 引入。 */
+    private DiskBaseline diskBaseline;
+    /** 当前编辑值：S1 阶段与快照相同，S2 写回成功后更新为写入后的实际值。 */
     private TrackTags current;
     private TrackStatus status;
 
@@ -62,6 +62,18 @@ public final class Track {
     /** 最近成功落盘基线；写回预检用它比对文件是否被外部修改（DEV-003）。 */
     DiskBaseline diskBaseline() {
         return diskBaseline;
+    }
+
+    /**
+     * 写回成功后更新「最近成功落盘值」与状态（DEV-002、DEV-003）。
+     *
+     * <p>{@code written} 为写回后从磁盘读回的实际标签值，{@code baseline} 为写入后的实际文件指纹；
+     * 首次快照保持不变，差异基准随之切换为新的落盘值。
+     */
+    synchronized void markWritten(TrackTags written, DiskBaseline baseline) {
+        this.current = written;
+        this.diskBaseline = baseline;
+        this.status = TrackStatus.SAVED;
     }
 
     public TrackStatus status() {

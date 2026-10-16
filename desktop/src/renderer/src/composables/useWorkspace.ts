@@ -1,7 +1,15 @@
 import { ref, computed } from 'vue'
-import type { TrackItem, TrackTagData, EditableTagField, ColumnDefinition, SkipItem } from '../types'
+import type {
+  TrackItem,
+  TrackTagData,
+  EditableTagField,
+  ColumnDefinition,
+  SkipItem,
+  WriteOutcomeItem
+} from '../types'
 import {
   clearWorkspace as clearWorkspaceApi,
+  commitWriteBack,
   fetchWorkspace,
   importPaths,
   removeTracks,
@@ -40,6 +48,26 @@ const selectedTrackId = ref<number | null>(null)
 const selectedTrackIds = ref<number[]>([])
 /** 待写回封面（BIZ-020）：trackId → data URL；空串表示已标记移除封面。仅内存编辑态。 */
 const pendingCovers = ref<Record<number, string>>({})
+/** 最近一次写回结果（BIZ-028）：供结果面板逐项展示。 */
+const lastWriteOutcomes = ref<WriteOutcomeItem[]>([])
+/** 写回进行中标记。 */
+const writing = ref(false)
+
+/** 可写回的 12 个元数据字段（S2-2 不含歌词，歌词帧映射属 DEV-005）。 */
+const METADATA_FIELDS: EditableTagField[] = [
+  'title',
+  'artist',
+  'album',
+  'albumArtist',
+  'trackNo',
+  'discNo',
+  'year',
+  'genre',
+  'composer',
+  'lyricist',
+  'arranger',
+  'comment'
+]
 
 // 行内编辑状态
 const editingCell = ref<{
@@ -451,22 +479,70 @@ export function useWorkspace() {
   }
 
   /**
-   * S2-1 占位实现：把当前编辑值记为「最近成功落盘值」并清除待写回封面，首次快照保持不变（FR-8）。
-   * 仍不写盘；S2-2 接入后端写回后改为使用写回返回的实际磁盘状态与执行结果。
+   * 写回标签到磁盘（FR-8、DEV-003、BIZ-028）：提交每首待提交曲目的整份当前值与封面意图，
+   * 后端按自己持有的落盘基线自算差异并逐文件执行；结果用于刷新最近落盘值、状态与结果面板。
    */
-  const commitDiskWriteAll = () => {
+  const commitAllWrites = async (): Promise<void> => {
+    const targets = tracks.value.filter((t) => t.status !== 'failed' && hasPendingChanges(t))
+    if (targets.length === 0) {
+      lastWriteOutcomes.value = []
+      return
+    }
+    writing.value = true
+    try {
+      const result = await commitWriteBack(
+        targets.map((t) => ({
+          id: t.id,
+          tags: cloneTags(t.tags),
+          cover: pendingCovers.value[t.id] === undefined ? null : pendingCovers.value[t.id]
+        }))
+      )
+      lastWriteOutcomes.value = result.outcomes
+      applyWriteOutcomes(result.outcomes)
+      importError.value = null
+    } catch (error) {
+      importError.value = error instanceof Error ? error.message : String(error)
+      lastWriteOutcomes.value = []
+    } finally {
+      writing.value = false
+    }
+  }
+
+  /** 按写回结果收敛状态：成功项刷新最近落盘值并清待写回封面；其余保留待提交并附原因。 */
+  const applyWriteOutcomes = (outcomes: WriteOutcomeItem[]): void => {
+    const byId = new Map(outcomes.map((o) => [o.id, o]))
     tracks.value.forEach((t) => {
-      if (t.status === 'failed' || !hasPendingChanges(t)) {
+      const outcome = byId.get(t.id)
+      if (!outcome) return
+      if (outcome.outcome === 'written') {
+        if (outcome.tags) {
+          applyWrittenMetadata(t, outcome.tags)
+        }
+        t.hasCover = outcome.hasCover
+        if (pendingCovers.value[t.id] !== undefined) {
+          const next = { ...pendingCovers.value }
+          delete next[t.id]
+          pendingCovers.value = next
+        }
+        t.failureReason = undefined
+        refreshStatus(t)
         return
       }
-      t.lastWritten = cloneTags(t.tags)
-      if (pendingCovers.value[t.id] !== undefined) {
-        const next = { ...pendingCovers.value }
-        delete next[t.id]
-        pendingCovers.value = next
+      // stale / blocked / failed-restored：磁盘未变，保持待提交；failed-manual 需人工处理
+      t.failureReason = outcome.detail || outcome.reason || '写回失败'
+      if (outcome.outcome === 'failed-manual') {
+        t.status = 'failed'
       }
-      t.status = 'saved'
     })
+  }
+
+  /** 用磁盘实际值刷新最近落盘值的 12 个元数据字段（歌词未写回，保持不变）。 */
+  const applyWrittenMetadata = (track: TrackItem, written: TrackTagData): void => {
+    const next = cloneTags(track.lastWritten)
+    METADATA_FIELDS.forEach((field) => {
+      next[field] = written[field] ?? ''
+    })
+    track.lastWritten = next
   }
 
   return {
@@ -506,7 +582,8 @@ export function useWorkspace() {
     renumberTracks,
     rollbackTrack,
     rollbackAll,
-    commitDiskWriteAll,
-    commitAllWrites: commitDiskWriteAll
+    commitAllWrites,
+    lastWriteOutcomes,
+    writing
   }
 }

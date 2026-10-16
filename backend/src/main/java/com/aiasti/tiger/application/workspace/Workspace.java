@@ -75,6 +75,13 @@ public class Workspace {
                 .flatMap(Track::cover);
     }
 
+    /** 按曲目 id 查找（写回按提交清单逐项处理，DEV-003）。 */
+    synchronized Optional<Track> find(long id) {
+        return tracks.values().stream()
+                .filter(track -> track.id() == id)
+                .findFirst();
+    }
+
     public synchronized WorkspaceView view() {
         List<TrackView> views = tracks.values().stream().map(Track::toView).toList();
         return new WorkspaceView(views, List.copyOf(skipped));

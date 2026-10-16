@@ -14,16 +14,20 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aiasti.tiger.application.ImportWorkspaceService;
 import com.aiasti.tiger.application.workspace.CoverData;
 import com.aiasti.tiger.application.workspace.WorkspaceView;
+import com.aiasti.tiger.application.workspace.WriteBackResult;
+import com.aiasti.tiger.application.workspace.WriteBackService;
 
-/** 工作区接口（FR-1）：导入、查询、移出曲目与内嵌封面。api 层不直接读写文件，经 application 调用 domain 端口。 */
+/** 工作区接口（FR-1）：导入、查询、移出曲目、内嵌封面与写回。api 层不直接读写文件，经 application 调用 domain 端口。 */
 @RestController
 @RequestMapping("/api/workspace")
 public class WorkspaceController {
 
     private final ImportWorkspaceService importWorkspaceService;
+    private final WriteBackService writeBackService;
 
-    public WorkspaceController(ImportWorkspaceService importWorkspaceService) {
+    public WorkspaceController(ImportWorkspaceService importWorkspaceService, WriteBackService writeBackService) {
         this.importWorkspaceService = importWorkspaceService;
+        this.writeBackService = writeBackService;
     }
 
     @PostMapping("/import")
@@ -46,6 +50,12 @@ public class WorkspaceController {
     @PostMapping("/clear")
     public WorkspaceView clear() {
         return importWorkspaceService.clearWorkspace();
+    }
+
+    /** 写回标签（FR-8、DEV-003、BIZ-028）：逐文件五阶段执行，返回同序的逐项结果。 */
+    @PostMapping("/commit")
+    public WriteBackResult commit(@RequestBody WriteBackRequest request) {
+        return writeBackService.writeAll(request.tracks());
     }
 
     /** 取曲目内嵌封面；无封面返回 404（按需获取，避免列表返回体积膨胀）。 */

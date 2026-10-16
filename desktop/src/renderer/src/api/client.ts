@@ -1,4 +1,4 @@
-import type { TrackItem, SkipItem } from '../types'
+import type { TrackItem, SkipItem, TrackTagData, WriteOutcomeItem } from '../types'
 
 /** 后端返回的曲目视图：不含渲染层独有的「最近成功落盘值」（DEV-002、BIZ-026）。 */
 export type TrackApiItem = Omit<TrackItem, 'lastWritten'>
@@ -62,6 +62,27 @@ export function removeTracks(ids: number[]): Promise<WorkspaceView> {
 /** 清空工作区（会话内状态；每次渲染层加载都视为新会话，BIZ-017、BIZ-027）。 */
 export function clearWorkspace(): Promise<WorkspaceView> {
   return request<WorkspaceView>('/api/workspace/clear', { method: 'POST' })
+}
+
+/** 单首曲目的写回提交内容（BIZ-028）：整份当前标签值 + 封面意图。 */
+export interface WriteCommandItem {
+  id: number
+  tags: TrackTagData
+  /** null=保持现状、""=移除封面、否则为 data URL。 */
+  cover: string | null
+}
+
+/** 写回结果（与提交清单同序）。 */
+export interface WriteBackResult {
+  outcomes: WriteOutcomeItem[]
+}
+
+/** 写回标签到磁盘（FR-8、DEV-003、BIZ-028）：后端按落盘基线自算差异并逐文件五阶段执行。 */
+export function commitWriteBack(tracks: WriteCommandItem[]): Promise<WriteBackResult> {
+  return request<WriteBackResult>('/api/workspace/commit', {
+    method: 'POST',
+    body: JSON.stringify({ tracks })
+  })
 }
 
 /** 取曲目内嵌封面并转为可直接展示的对象 URL；无封面返回 null。 */

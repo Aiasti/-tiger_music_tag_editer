@@ -30,4 +30,13 @@ public record DiskBaseline(long modifiedMillis, long sizeBytes) {
     public boolean available() {
         return modifiedMillis >= 0L && sizeBytes >= 0L;
     }
+
+    /** 与另一基线是否指向同一文件状态（两者都须可用）。写回预检用它判断文件是否被外部改动。 */
+    public boolean sameAs(DiskBaseline other) {
+        return other != null
+                && available()
+                && other.available()
+                && modifiedMillis == other.modifiedMillis
+                && sizeBytes == other.sizeBytes;
+    }
 }
