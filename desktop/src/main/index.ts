@@ -152,6 +152,9 @@ function createWindow(): void {
     width: 1200,
     height: 800,
     show: false,
+    icon: is.dev
+      ? join(__dirname, '../../resources/icon.ico')
+      : join(process.resourcesPath, 'icon.ico'),
     titleBarStyle: 'hidden',
     titleBarOverlay: TITLEBAR_OVERLAY.dark,
     autoHideMenuBar: true,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import appIcon from '../../assets/tiger-icon.png'
 import { useModals } from '../../composables/useModals'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useSettings } from '../../composables/useSettings'
@@ -109,7 +110,7 @@ const handleListen = async () => {
     <!-- A1: 标题栏与窗口控制区 -->
     <div class="window-titlebar">
       <div class="app-brand">
-        <span class="app-icon">🐯</span>
+        <img class="app-icon" :src="appIcon" alt="" />
         <span class="app-name">Tiger Music Tag Editor</span>
       </div>
     </div>
@@ -277,7 +278,10 @@ const handleListen = async () => {
   font-size: 12px;
 }
 .app-icon {
-  font-size: 14px;
+  width: 16px;
+  height: 16px;
+  display: block;
+  object-fit: contain;
 }
 .app-name {
   font-weight: 600;

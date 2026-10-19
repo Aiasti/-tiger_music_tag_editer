@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ModalContainer from './ModalContainer.vue'
+import appIcon from '../../assets/tiger-icon.png'
 import { useSettings } from '../../composables/useSettings'
 import { useConfirm } from '../../composables/useConfirm'
 import { useTheme, type ThemePreference } from '../../composables/useTheme'
@@ -153,7 +154,7 @@ const handleSave = async () => {
       <!-- 关于 -->
       <div v-else class="tab-pane about-pane">
         <div class="about-brand">
-          <span class="about-icon">🐯</span>
+          <img class="about-icon" :src="appIcon" alt="" />
           <div>
             <div class="about-name">Tiger Music Tag Editor</div>
             <div class="about-version">版本 v{{ appVersion || '…' }}</div>
@@ -277,8 +278,10 @@ const handleSave = async () => {
   gap: 12px;
 }
 .about-icon {
-  font-size: 32px;
-  line-height: 1;
+  width: 40px;
+  height: 40px;
+  display: block;
+  object-fit: contain;
 }
 .about-name {
   font-size: var(--font-md);

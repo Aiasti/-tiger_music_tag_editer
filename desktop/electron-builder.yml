@@ -10,6 +10,10 @@ extraResources:
   # fpcalc 由 scripts/prepare-fpcalc.mjs 在打包前复制；运行时解析为 resources/fpcalc
   - from: build/fpcalc
     to: fpcalc
+  # 应用图标：安装包与窗口图标共用
+  - from: resources/icon.ico
+    to: icon.ico
 win:
+  icon: resources/icon.ico
   target:
     - nsis
