@@ -1,5 +1,7 @@
 package com.aiasti.tiger.infrastructure.online;
 
+import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -14,6 +16,7 @@ public class OnlineProperties {
     private final AcoustId acoustid = new AcoustId();
     private final CoverArt coverArt = new CoverArt();
     private final Itunes itunes = new Itunes();
+    private final LrcCx lrcCx = new LrcCx();
     private final Fpcalc fpcalc = new Fpcalc();
     private final Lyrics lyrics = new Lyrics();
 
@@ -31,6 +34,10 @@ public class OnlineProperties {
 
     public Itunes getItunes() {
         return itunes;
+    }
+
+    public LrcCx getLrcCx() {
+        return lrcCx;
     }
 
     public Fpcalc getFpcalc() {
@@ -137,8 +144,8 @@ public class OnlineProperties {
     /** iTunes Search API：按专辑/艺术家/标题检索封面。 */
     public static class Itunes {
         private String baseUrl = "https://itunes.apple.com";
-        private String country = "US";
-        private int requestsPerSecond = 3;
+        private List<String> countries = List.of("US", "JP", "HK");
+        private int requestsPerSecond = 1;
         private int timeoutSeconds = 15;
 
         public String getBaseUrl() {
@@ -149,12 +156,62 @@ public class OnlineProperties {
             this.baseUrl = baseUrl;
         }
 
-        public String getCountry() {
-            return country;
+        public List<String> getCountries() {
+            return countries;
         }
 
-        public void setCountry(String country) {
-            this.country = country;
+        public void setCountries(List<String> countries) {
+            this.countries = countries == null || countries.isEmpty()
+                    ? List.of("US", "JP", "HK") : countries;
+        }
+
+        public int getRequestsPerSecond() {
+            return requestsPerSecond;
+        }
+
+        public void setRequestsPerSecond(int requestsPerSecond) {
+            this.requestsPerSecond = requestsPerSecond;
+        }
+
+        public int getTimeoutSeconds() {
+            return timeoutSeconds;
+        }
+
+        public void setTimeoutSeconds(int timeoutSeconds) {
+            this.timeoutSeconds = timeoutSeconds;
+        }
+    }
+
+    /** lrcapi 公开/自建服务：歌词与封面共用 /jsonapi。 */
+    public static class LrcCx {
+        private String baseUrl = "https://api.lrc.cx";
+        private String userAgent = "TigerMusicTagEditor/0.5.1 (master98@live.cn)";
+        private boolean enabled = true;
+        private int requestsPerSecond = 1;
+        private int timeoutSeconds = 10;
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public String getUserAgent() {
+            return userAgent;
+        }
+
+        public void setUserAgent(String userAgent) {
+            this.userAgent = userAgent;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
 
         public int getRequestsPerSecond() {

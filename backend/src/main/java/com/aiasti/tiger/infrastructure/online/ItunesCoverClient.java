@@ -31,7 +31,7 @@ public class ItunesCoverClient implements CoverSearchPort {
 
     private final RestClient client;
     private final RequestThrottle throttle;
-    private final String country;
+    private final List<String> countries;
     private final ObjectMapper json;
     private final Map<String, List<CoverCandidate>> cache = new ConcurrentHashMap<>();
 
@@ -45,8 +45,20 @@ public class ItunesCoverClient implements CoverSearchPort {
                 .requestFactory(factory)
                 .build();
         this.throttle = new RequestThrottle(config.getRequestsPerSecond());
-        this.country = config.getCountry() == null ? "" : config.getCountry().trim();
+        List<String> configured = config.getCountries();
+        this.countries = configured == null || configured.isEmpty()
+                ? List.of("US")
+                : configured.stream()
+                        .filter(value -> value != null && !value.isBlank())
+                        .map(value -> value.trim().toUpperCase(Locale.ROOT))
+                        .distinct()
+                        .toList();
         this.json = json;
+    }
+
+    @Override
+    public String sourceName() {
+        return "iTunes";
     }
 
     @Override
@@ -55,26 +67,51 @@ public class ItunesCoverClient implements CoverSearchPort {
         if (term.isBlank()) {
             return List.of();
         }
-        String cacheKey = normalize(term) + "|" + normalize(album) + "|" + normalize(artist);
+        String cacheKey = normalize(term) + "|" + normalize(album) + "|" + normalize(artist)
+                + "|" + String.join(",", countries);
         List<CoverCandidate> cached = cache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
-        String body = execute(() -> client.get()
-                .uri(uriBuilder -> {
-                    var builder = uriBuilder.path("/search")
-                            .queryParam("term", term)
-                            .queryParam("entity", "album")
-                            .queryParam("limit", MAX_CANDIDATES);
-                    if (!country.isBlank()) {
-                        builder.queryParam("country", country);
-                    }
-                    return builder.build();
-                })
-                .retrieve()
-                .body(String.class));
+        Map<String, CoverCandidate> byId = new LinkedHashMap<>();
+        RuntimeException firstError = null;
+        for (String country : countries) {
+            try {
+                String body = execute(() -> client.get()
+                        .uri(uriBuilder -> uriBuilder.path("/search")
+                                .queryParam("term", term)
+                                .queryParam("entity", "album")
+                                .queryParam("limit", MAX_CANDIDATES)
+                                .queryParam("country", country)
+                                .build())
+                        .retrieve()
+                        .body(String.class));
+                mergeResults(byId, body, album, artist, title, country);
+            } catch (RuntimeException e) {
+                if (firstError == null) {
+                    firstError = e;
+                }
+            }
+        }
+        if (byId.isEmpty() && firstError != null) {
+            throw firstError;
+        }
+        List<CoverCandidate> result = new ArrayList<>(byId.values());
+        result.sort((a, b) -> Integer.compare(b.score(), a.score()));
+        result = result.stream().limit(MAX_CANDIDATES).toList();
+        if (!result.isEmpty()) {
+            if (cache.size() >= 500) {
+                cache.clear();
+            }
+            cache.put(cacheKey, result);
+        }
+        return result;
+    }
+
+    private void mergeResults(Map<String, CoverCandidate> byId, String body, String album,
+                              String artist, String title, String country) {
         if (body == null || body.isBlank()) {
-            return List.of();
+            return;
         }
         JsonNode root;
         try {
@@ -82,7 +119,6 @@ public class ItunesCoverClient implements CoverSearchPort {
         } catch (java.io.IOException e) {
             throw new OnlineAccessException("解析 iTunes 响应失败：" + e.getMessage(), e);
         }
-        Map<String, CoverCandidate> byId = new LinkedHashMap<>();
         for (JsonNode result : root.path("results")) {
             String collectionId = result.path("collectionId").asText("");
             String collectionName = text(result, "collectionName");
@@ -104,19 +140,12 @@ public class ItunesCoverClient implements CoverSearchPort {
                     "",
                     "",
                     largeArtwork(artwork),
-                    "iTunes 专辑检索 · Apple Music 封面");
-            byId.put(candidate.id(), candidate);
-        }
-        List<CoverCandidate> result = new ArrayList<>(byId.values());
-        result.sort((a, b) -> Integer.compare(b.score(), a.score()));
-        result = result.stream().limit(MAX_CANDIDATES).toList();
-        if (!result.isEmpty()) {
-            if (cache.size() >= 500) {
-                cache.clear();
+                    "iTunes 专辑检索 · " + country + " · Apple Music 封面");
+            CoverCandidate existing = byId.get(candidate.id());
+            if (existing == null || candidate.score() > existing.score()) {
+                byId.put(candidate.id(), candidate);
             }
-            cache.put(cacheKey, result);
         }
-        return result;
     }
 
     static String buildTerm(String album, String artist, String title) {

@@ -147,7 +147,7 @@ export function matchMetadata(track: TrackItem, keyword = ''): Promise<MetadataM
   })
 }
 
-/** 单曲歌词检索（FR-6、DEV-004）：首版由后端查询 LRCLIB。 */
+/** 单曲歌词检索（FR-6、DEV-004）：后端聚合 LRCLIB 与 lrcapi。 */
 export function matchLyrics(track: TrackItem, keyword = ''): Promise<LyricsMatchResult> {
   return request<LyricsMatchResult>('/api/match/lyrics', {
     method: 'POST',

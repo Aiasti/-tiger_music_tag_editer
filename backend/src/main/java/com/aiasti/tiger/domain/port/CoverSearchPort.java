@@ -8,4 +8,9 @@ import com.aiasti.tiger.domain.model.CoverCandidate;
 public interface CoverSearchPort {
 
     List<CoverCandidate> search(String album, String artist, String title);
+
+    /** 用户可见的封面源名称，用于失败提示。 */
+    default String sourceName() {
+        return getClass().getSimpleName();
+    }
 }

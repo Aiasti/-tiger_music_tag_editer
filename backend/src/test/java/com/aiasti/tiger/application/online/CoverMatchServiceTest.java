@@ -23,26 +23,49 @@ class CoverMatchServiceTest {
     Path tempDir;
 
     @Test
-    void returnsItunesCandidatesSortedByScoreAndLimited() throws Exception {
+    void keepsThreePerSourceSortedByScore() throws Exception {
         Workspace workspace = workspaceWithTrack();
         List<CoverCandidate> candidates = new ArrayList<>();
         for (int score = 70; score <= 120; score += 10) {
             candidates.add(itunes("itunes-" + score, score));
         }
-        CoverMatchService service = new CoverMatchService(new FakeCoverSearch(candidates), workspace);
+        CoverMatchService service = new CoverMatchService(List.of(new FakeCoverSearch(candidates)), workspace);
 
         CoverMatchResult result = service.match(query());
 
-        assertEquals(5, result.candidates().size());
+        assertEquals(3, result.candidates().size(), "每个源只保留 3 条");
         assertEquals("itunes-120", result.candidates().get(0).id());
         assertTrue(result.candidates().get(0).imageUrl().contains("mzstatic.com"));
+    }
+
+    @Test
+    void mergesTwoSourcesWithThreeEachAndCapsAtFive() throws Exception {
+        Workspace workspace = workspaceWithTrack();
+        List<CoverCandidate> itunes = new ArrayList<>();
+        List<CoverCandidate> lrcapi = new ArrayList<>();
+        for (int index = 1; index <= 4; index++) {
+            itunes.add(itunes("itunes-" + index, 90 + index));
+            lrcapi.add(lrcapi("lrc-cx-" + index, 90 + index));
+        }
+        CoverMatchService service = new CoverMatchService(List.of(
+                new FakeCoverSearch(itunes, null, "iTunes"),
+                new FakeCoverSearch(lrcapi, null, "LRCAPI")), workspace);
+
+        CoverMatchResult result = service.match(query());
+
+        assertEquals(3, result.candidates().stream()
+                .filter(candidate -> "iTunes".equals(candidate.source())).count());
+        assertEquals(2, result.candidates().stream()
+                .filter(candidate -> "LRCAPI".equals(candidate.source())).count(),
+                "每源 3 条合并后按总分截断为 5 条");
+        assertEquals(5, result.candidates().size());
     }
 
     @Test
     void fallsBackToTrackTagsWhenQueryFieldsAreBlank() throws Exception {
         Workspace workspace = workspaceWithTrack();
         FakeCoverSearch coverSearch = new FakeCoverSearch(List.of(itunes("itunes-1", 90)));
-        CoverMatchService service = new CoverMatchService(coverSearch, workspace);
+        CoverMatchService service = new CoverMatchService(List.of(coverSearch), workspace);
 
         CoverMatchResult result = service.match(
                 new TrackMatchQuery(1L, "", "", "", "", "", "", "", ""));
@@ -57,7 +80,7 @@ class CoverMatchServiceTest {
     void warnsWhenItunesSearchFails() throws Exception {
         Workspace workspace = workspaceWithTrack();
         CoverMatchService service = new CoverMatchService(
-                new FakeCoverSearch(List.of(), new IllegalStateException("network down")), workspace);
+                List.of(new FakeCoverSearch(List.of(), new IllegalStateException("network down"))), workspace);
 
         CoverMatchResult result = service.match(query());
 
@@ -71,7 +94,7 @@ class CoverMatchServiceTest {
         Workspace workspace = workspaceWithTrack();
         String lyrics = "[00:01.00]keep me";
         CoverMatchService service = new CoverMatchService(
-                new FakeCoverSearch(List.of(itunes("itunes-1", 95))), workspace);
+                List.of(new FakeCoverSearch(List.of(itunes("itunes-1", 95)))), workspace);
 
         service.match(query());
 
@@ -101,20 +124,36 @@ class CoverMatchServiceTest {
                 "Album", "2020", "", "", "https://is1-ssl.mzstatic.com/" + id + "/600x600bb.jpg", "iTunes");
     }
 
+    private static CoverCandidate lrcapi(String id, int score) {
+        return new CoverCandidate(id, "LRCAPI", score, "Album", "Artist",
+                "Album", "2020", "", "", "https://p2.music.126.net/" + id + ".jpg", "LRCAPI · Apple Music 封面");
+    }
+
     private static final class FakeCoverSearch implements CoverSearchPort {
         private final List<CoverCandidate> candidates;
         private final RuntimeException failure;
+        private final String source;
         private String lastAlbum;
         private String lastArtist;
         private String lastTitle;
 
         private FakeCoverSearch(List<CoverCandidate> candidates) {
-            this(candidates, null);
+            this(candidates, null, "iTunes");
         }
 
         private FakeCoverSearch(List<CoverCandidate> candidates, RuntimeException failure) {
+            this(candidates, failure, "iTunes");
+        }
+
+        private FakeCoverSearch(List<CoverCandidate> candidates, RuntimeException failure, String source) {
             this.candidates = candidates;
             this.failure = failure;
+            this.source = source;
+        }
+
+        @Override
+        public String sourceName() {
+            return source;
         }
 
         @Override

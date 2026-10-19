@@ -304,7 +304,7 @@ onBeforeUnmount(() => {
 
       <div class="throttle-bar">
         <span>
-          ⏱️ iTunes 封面检索按 3 请求/秒串行；按专辑名、艺术家与标题匹配
+          ⏱️ iTunes（US / JP / HK）与 LRCAPI 封面检索按 1 请求/秒串行；每源最多 3 条
           <template v-if="progress.total > 0"> · 检索 {{ progress.done }}/{{ progress.total }}</template>
           <template v-if="applyProgress.total > 0"> · 应用 {{ applyProgress.done }}/{{ applyProgress.total }}</template>
         </span>
@@ -416,7 +416,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="modal-alert info">
-        ℹ️ 封面匹配通过 iTunes Search API 按专辑名、艺术家与标题检索封面；
+        ℹ️ 封面匹配通过 iTunes Search API（US / JP / HK）与 LRCAPI 按专辑名、艺术家与标题检索封面，iTunes 与 LRCAPI 图片均按 600×600 请求；
         批量应用按每首曲目各自最高分候选写入，不使用当前行候选。封面只进入待写回态，不影响任何标签字段或歌词。
       </div>
     </div>

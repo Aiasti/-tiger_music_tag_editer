@@ -41,10 +41,10 @@ class OnlineProviderProtocolTest {
 
     @Test
     void lyricsConfidenceRewardsTitleAndDurationMatch() {
-        int exact = LrclibLyricsClient.confidence(
+        int exact = LyricsConfidence.score(
                 new com.aiasti.tiger.domain.model.LyricsQuery("Imagine", "John Lennon", "Imagine", "", 183),
                 "Imagine", "John Lennon", "Imagine", 183);
-        int different = LrclibLyricsClient.confidence(
+        int different = LyricsConfidence.score(
                 new com.aiasti.tiger.domain.model.LyricsQuery("Imagine", "John Lennon", "Imagine", "", 183),
                 "Another Song", "Other Artist", "Other Album", 300);
 

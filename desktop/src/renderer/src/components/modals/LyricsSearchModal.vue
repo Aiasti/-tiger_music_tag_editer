@@ -287,7 +287,7 @@ const handleApplyBatch = () => {
           <div class="pane-block">
             <div class="pane-label">
               <span>当前曲目多源歌词候选：</span>
-              <span class="pane-summary">按来源优先级排序</span>
+              <span class="pane-summary">按匹配度排序</span>
             </div>
             <div class="candidate-list">
               <div

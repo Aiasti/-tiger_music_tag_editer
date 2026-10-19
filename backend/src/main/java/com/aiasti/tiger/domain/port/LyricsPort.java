@@ -9,4 +9,9 @@ import com.aiasti.tiger.domain.model.LyricsQuery;
 public interface LyricsPort {
 
     List<LyricsCandidate> search(LyricsQuery query);
+
+    /** 用户可见的歌词源名称，用于失败提示与候选来源。 */
+    default String sourceName() {
+        return getClass().getSimpleName();
+    }
 }

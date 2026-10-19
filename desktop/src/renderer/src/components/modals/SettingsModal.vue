@@ -170,7 +170,7 @@ const handleSave = async () => {
           </div>
           <div>
             <dt>在线数据源</dt>
-            <dd>MusicBrainz、AcoustID、LRCLIB</dd>
+            <dd>MusicBrainz、AcoustID、LRCLIB、iTunes、lrcapi</dd>
           </div>
         </dl>
       </div>

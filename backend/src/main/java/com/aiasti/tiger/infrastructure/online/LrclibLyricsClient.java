@@ -59,6 +59,11 @@ public class LrclibLyricsClient implements LyricsPort {
     }
 
     @Override
+    public String sourceName() {
+        return "LRCLIB";
+    }
+
+    @Override
     public List<LyricsCandidate> search(LyricsQuery query) {
         String trackName = firstNonBlank(query.keyword(), query.title());
         if (trackName.isBlank() && query.artist().isBlank()) {
@@ -110,7 +115,7 @@ public class LrclibLyricsClient implements LyricsPort {
                     album,
                     formatDuration(duration),
                     !synced.isBlank(),
-                    confidence(query, title, artist, album, duration),
+                    LyricsConfidence.score(query, title, artist, album, duration),
                     preview));
         }
         List<LyricsCandidate> result = candidates.stream()
@@ -125,40 +130,6 @@ public class LrclibLyricsClient implements LyricsPort {
         }
         return result;
     }
-    /** 置信度启发式：标题精确优先，其次艺术家、专辑与时长接近度。 */
-    static int confidence(LyricsQuery query, String title, String artist, String album, long durationSeconds) {
-        int score = 50;
-        String expectedTitle = normalize(firstNonBlank(query.title(), query.keyword()));
-        String actualTitle = normalize(title);
-        if (!expectedTitle.isBlank() && !actualTitle.isBlank()) {
-            if (expectedTitle.equals(actualTitle)) {
-                score += 25;
-            } else if (expectedTitle.contains(actualTitle) || actualTitle.contains(expectedTitle)) {
-                score += 10;
-            }
-        }
-        if (containsNormalized(query.artist(), artist)) {
-            score += 15;
-        }
-        if (containsNormalized(query.album(), album)) {
-            score += 5;
-        }
-        if (query.durationSeconds() > 0 && durationSeconds > 0
-                && Math.abs(query.durationSeconds() - durationSeconds) <= 3) {
-            score += 5;
-        }
-        return Math.min(99, score);
-    }
-
-    private static boolean containsNormalized(String expected, String actual) {
-        String a = normalize(expected);
-        String b = normalize(actual);
-        if (a.isBlank() || b.isBlank()) {
-            return false;
-        }
-        return a.equals(b) || a.contains(b) || b.contains(a);
-    }
-
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }

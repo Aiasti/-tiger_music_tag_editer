@@ -71,18 +71,11 @@ public class CoverArtArchiveClient implements CoverArtPort {
 
     @Override
     public Optional<CoverImage> fetch(String imageUrl) {
-        if (imageUrl == null || imageUrl.isBlank()) {
+        Optional<URI> trusted = trustedImageUri(imageUrl);
+        if (trusted.isEmpty()) {
             return Optional.empty();
         }
-        URI uri;
-        try {
-            uri = URI.create(imageUrl.trim());
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
-        }
-        if (!"https".equalsIgnoreCase(uri.getScheme()) || !trustedHost(uri.getHost())) {
-            return Optional.empty();
-        }
+        URI uri = trusted.get();
         String key = "url|" + uri;
         Optional<CoverImage> cached = cache.get(key);
         if (cached != null) {
@@ -96,6 +89,29 @@ public class CoverArtArchiveClient implements CoverArtPort {
         return image;
     }
 
+    /** 规范化并校验图片地址：仅允许可信主机；http 地址升级为 https。 */
+    static Optional<URI> trustedImageUri(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return Optional.empty();
+        }
+        URI uri;
+        try {
+            uri = URI.create(imageUrl.trim());
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+        if (uri.getHost() == null) {
+            return Optional.empty();
+        }
+        if ("http".equalsIgnoreCase(uri.getScheme())) {
+            uri = URI.create(uri.toString().replaceFirst("(?i)^http://", "https://"));
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || !trustedHost(uri.getHost())) {
+            return Optional.empty();
+        }
+        return Optional.of(uri);
+    }
+
     /** 只代理可信图片源，避免把后端变成任意 URL 代理。 */
     private static boolean trustedHost(String host) {
         if (host == null) {
@@ -103,6 +119,8 @@ public class CoverArtArchiveClient implements CoverArtPort {
         }
         String value = host.toLowerCase(java.util.Locale.ROOT);
         return value.equals("mzstatic.com") || value.endsWith(".mzstatic.com")
+                || value.equals("music.126.net") || value.endsWith(".music.126.net")
+                || value.equals("kugou.com") || value.endsWith(".kugou.com")
                 || value.equals("coverartarchive.org") || value.endsWith(".coverartarchive.org")
                 || value.equals("archive.org") || value.endsWith(".archive.org");
     }

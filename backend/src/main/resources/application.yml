@@ -35,9 +35,20 @@ app:
       timeout-seconds: 20
     itunes:
       base-url: https://itunes.apple.com
-      country: US
-      requests-per-second: 3
+      # 多区检索；CN 区公开 Search API 实测无结果，使用 US/JP/HK
+      countries:
+        - US
+        - JP
+        - HK
+      requests-per-second: 1
       timeout-seconds: 15
+    lrc-cx:
+      # lrcapi 公开服务；歌词与封面共用 /jsonapi
+      base-url: https://api.lrc.cx
+      user-agent: ${TIGER_LRC_CX_USER_AGENT:TigerMusicTagEditor/@project.version@ (master98@live.cn)}
+      enabled: true
+      requests-per-second: 1
+      timeout-seconds: 10
     lyrics:
       lrclib:
         base-url: https://lrclib.net/api

@@ -80,7 +80,7 @@ class OnlineMatchServiceTest {
         FakeLyrics lyrics = new FakeLyrics(List.of(new LyricsCandidate(
                 "lrclib-1", "LRCLIB", "Song", "Artist", "Album", "3:20", true, 95, "[00:01.00]line")));
 
-        LyricsMatchResult result = new LyricsMatchService(lyrics, workspace)
+        LyricsMatchResult result = new LyricsMatchService(List.of(lyrics), workspace)
                 .search(new LyricsMatchQuery(1L, "Song", "Artist", "Album", ""));
 
         assertEquals(1, result.candidates().size());
@@ -94,11 +94,39 @@ class OnlineMatchServiceTest {
         FakeLyrics lyrics = new FakeLyrics(List.of());
         lyrics.failure = new OnlineAccessException("连接失败");
 
-        LyricsMatchResult result = new LyricsMatchService(lyrics, workspace)
+        LyricsMatchResult result = new LyricsMatchService(List.of(lyrics), workspace)
                 .search(new LyricsMatchQuery(1L, "Song", "Artist", "", ""));
 
         assertTrue(result.candidates().isEmpty());
         assertTrue(result.warnings().stream().anyMatch(message -> message.contains("歌词检索失败")));
+    }
+
+    @Test
+    void lyricsKeepsThreePerSourceAndDropsIdenticalContent() throws Exception {
+        Workspace workspace = workspaceWithTrack("song.mp3", tags("Song", "Artist", "Album"));
+        List<LyricsCandidate> lrclib = new java.util.ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            lrclib.add(new LyricsCandidate("lrclib-" + i, "LRCLIB", "Song", "Artist", "Album",
+                    "3:20", true, 96 - i, "[00:01.00]line " + i));
+        }
+        List<LyricsCandidate> lrcapi = new java.util.ArrayList<>();
+        lrcapi.add(new LyricsCandidate("lrc-cx-dup", "LRCAPI", "Song", "Artist", "Album",
+                "3:20", true, 93, "[00:01.00]line 3"));
+        for (int i = 1; i <= 3; i++) {
+            lrcapi.add(new LyricsCandidate("lrc-cx-" + i, "LRCAPI", "Song", "Artist", "Album",
+                    "3:2" + i, true, 80, "[00:01.00]other " + i));
+        }
+
+        LyricsMatchResult result = new LyricsMatchService(
+                List.of(new FakeLyrics(lrclib), new FakeLyrics(lrcapi)), workspace)
+                .search(new LyricsMatchQuery(1L, "Song", "Artist", "Album", ""));
+
+        assertEquals(3, result.candidates().stream()
+                .filter(candidate -> "LRCLIB".equals(candidate.source())).count());
+        assertEquals(2, result.candidates().stream()
+                .filter(candidate -> "LRCAPI".equals(candidate.source())).count(),
+                "lrcapi 第三条与 LRCLIB 内容相同，应去重");
+        assertEquals(5, result.candidates().size());
     }
 
     private Workspace workspaceWithTrack(String fileName, TrackTags tags) throws Exception {
