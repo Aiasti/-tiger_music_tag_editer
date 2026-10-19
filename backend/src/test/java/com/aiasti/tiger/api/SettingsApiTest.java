@@ -33,6 +33,7 @@ class SettingsApiTest {
     private OnlineProperties properties;
 
     @BeforeEach
+    @SuppressWarnings("unused")
     void reset() {
         properties.getMusicbrainz().setUserAgent(UA);
         properties.getAcoustid().setApiKey("");

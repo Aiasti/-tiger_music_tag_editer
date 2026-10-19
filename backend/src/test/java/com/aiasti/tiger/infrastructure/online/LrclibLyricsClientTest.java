@@ -24,16 +24,17 @@ class LrclibLyricsClientTest {
         AtomicReference<String> query = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/search", exchange -> {
-            appId.set(exchange.getRequestHeaders().getFirst("Lrclib-App-Id"));
-            userAgent.set(exchange.getRequestHeaders().getFirst("User-Agent"));
-            query.set(exchange.getRequestURI().getQuery());
-            byte[] body = """
-                    [{"id":1,"trackName":"Imagine","artistName":"John Lennon","albumName":"Imagine","duration":183,"syncedLyrics":"[00:01.00]Imagine","plainLyrics":"Imagine","instrumental":false}]
-                    """.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, body.length);
-            exchange.getResponseBody().write(body);
-            exchange.close();
+            try (exchange) {
+                appId.set(exchange.getRequestHeaders().getFirst("Lrclib-App-Id"));
+                userAgent.set(exchange.getRequestHeaders().getFirst("User-Agent"));
+                query.set(exchange.getRequestURI().getQuery());
+                byte[] body = """
+                        [{"id":1,"trackName":"Imagine","artistName":"John Lennon","albumName":"Imagine","duration":183,"syncedLyrics":"[00:01.00]Imagine","plainLyrics":"Imagine","instrumental":false}]
+                        """.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, body.length);
+                exchange.getResponseBody().write(body);
+            }
         });
         server.start();
         try {

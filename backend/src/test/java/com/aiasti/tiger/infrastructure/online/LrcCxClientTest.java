@@ -28,22 +28,24 @@ class LrcCxClientTest {
         AtomicReference<String> userAgent = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/jsonapi", exchange -> {
-            path.set(exchange.getRequestURI().getPath());
-            query.set(exchange.getRequestURI().getQuery());
-            userAgent.set(exchange.getRequestHeaders().getFirst("User-Agent"));
-            respond(exchange, 200, """
-                    [
-                      {"id":"a1","title":"Imagine","artist":"John Lennon","album":"Imagine",
-                       "duration":183,"releaseDate":"1971-09-09",
-                       "lrc":"[00:01.00]Imagine all the people",
-                       "cover":"https://is1-ssl.mzstatic.com/image/thumb/a1/1500x1500bb.jpg",
-                       "cover_format":"https://is1-ssl.mzstatic.com/image/{w}x{h}bb.jpg"},
-                      {"id":"a2","title":"Imagine","artist":"John Lennon","album":"Imagine",
-                       "duration":183,"lrc":"","cover":"https://p2.music.126.net/abc/def.jpg"},
-                      {"id":"a3","title":"Imagine","artist":"John Lennon","album":"Imagine",
-                       "duration":183,"lrc":"","cover":"https://is1-ssl.mzstatic.com/image/thumb/a3/3000x3000bb.jpg"}
-                    ]
-                    """);
+            try (exchange) {
+                path.set(exchange.getRequestURI().getPath());
+                query.set(exchange.getRequestURI().getQuery());
+                userAgent.set(exchange.getRequestHeaders().getFirst("User-Agent"));
+                respond(exchange, 200, """
+                        [
+                          {"id":"a1","title":"Imagine","artist":"John Lennon","album":"Imagine",
+                           "duration":183,"releaseDate":"1971-09-09",
+                           "lrc":"[00:01.00]Imagine all the people",
+                           "cover":"https://is1-ssl.mzstatic.com/image/thumb/a1/1500x1500bb.jpg",
+                           "cover_format":"https://is1-ssl.mzstatic.com/image/{w}x{h}bb.jpg"},
+                          {"id":"a2","title":"Imagine","artist":"John Lennon","album":"Imagine",
+                           "duration":183,"lrc":"","cover":"https://p2.music.126.net/abc/def.jpg"},
+                          {"id":"a3","title":"Imagine","artist":"John Lennon","album":"Imagine",
+                           "duration":183,"lrc":"","cover":"https://is1-ssl.mzstatic.com/image/thumb/a3/3000x3000bb.jpg"}
+                        ]
+                        """);
+            }
         });
         server.start();
         try {
@@ -81,15 +83,17 @@ class LrcCxClientTest {
         AtomicInteger calls = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/jsonapi", exchange -> {
-            if (calls.incrementAndGet() == 1) {
-                respond(exchange, 429, "{}");
-                return;
+            try (exchange) {
+                if (calls.incrementAndGet() == 1) {
+                    respond(exchange, 429, "{}");
+                    return;
+                }
+                respond(exchange, 200, """
+                        [{"id":"a1","title":"Song","artist":"Artist","album":"Album",
+                          "duration":200,"lrc":"[00:01.00]line",
+                          "cover_format":"https://is1-ssl.mzstatic.com/image/{w}x{h}bb.jpg"}]
+                        """);
             }
-            respond(exchange, 200, """
-                    [{"id":"a1","title":"Song","artist":"Artist","album":"Album",
-                      "duration":200,"lrc":"[00:01.00]line",
-                      "cover_format":"https://is1-ssl.mzstatic.com/image/{w}x{h}bb.jpg"}]
-                    """);
         });
         server.start();
         try {
@@ -118,6 +122,5 @@ class LrcCxClientTest {
         exchange.getResponseHeaders().add("Content-Type", "application/json");
         exchange.sendResponseHeaders(status, bytes.length);
         exchange.getResponseBody().write(bytes);
-        exchange.close();
     }
 }
