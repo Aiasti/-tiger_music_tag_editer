@@ -92,12 +92,8 @@ const loadArt = async (candidate: CoverCandidateItem): Promise<ArtState | null> 
 }
 
 const loadArtForActive = async () => {
-  // 只自动加载可直接代理的图片（iTunes）；Cover Art Archive 候选在用户选中时按需加载
-  for (const candidate of candidates.value) {
-    if (candidate.imageUrl) {
-      await loadArt(candidate)
-    }
-  }
+  // 所有候选统一自动加载缩略图（iTunes 图片经后端代理下载）
+  await Promise.all(candidates.value.map((candidate) => loadArt(candidate)))
 }
 
 const selectCandidate = async (index: number) => {
@@ -295,7 +291,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <ModalContainer title="🖼️ 在线封面匹配 (Cover Art Archive)" max-width="900px" @close="emit('close')">
+  <ModalContainer title="🖼️ 在线封面匹配" max-width="900px" @close="emit('close')">
     <div class="cover-modal-body">
       <div class="scope-strip">
         <span>
@@ -308,7 +304,7 @@ onBeforeUnmount(() => {
 
       <div class="throttle-bar">
         <span>
-          ⏱️ Cover Art Archive 按 1 请求/秒串行；封面来源为专辑/指纹匹配得到的发行版
+          ⏱️ iTunes 封面检索按 3 请求/秒串行；按专辑名、艺术家与标题匹配
           <template v-if="progress.total > 0"> · 检索 {{ progress.done }}/{{ progress.total }}</template>
           <template v-if="applyProgress.total > 0"> · 应用 {{ applyProgress.done }}/{{ applyProgress.total }}</template>
         </span>
@@ -420,7 +416,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="modal-alert info">
-        ℹ️ 封面匹配使用专辑名、标题/艺术家与本地指纹得到发行版，再通过 Cover Art Archive 取正面封面；
+        ℹ️ 封面匹配通过 iTunes Search API 按专辑名、艺术家与标题检索封面；
         批量应用按每首曲目各自最高分候选写入，不使用当前行候选。封面只进入待写回态，不影响任何标签字段或歌词。
       </div>
     </div>

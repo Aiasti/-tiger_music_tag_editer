@@ -105,7 +105,7 @@ const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; 
 </script>
 
 <template>
-  <ModalContainer title="📦 归档（全工作区）(FR-7 / BIZ-030)" max-width="920px" @close="emit('close')">
+  <ModalContainer title="📦 归档（全工作区）" max-width="920px" @close="emit('close')">
     <div class="archive-modal-body">
       <div class="banner">
         <span>ℹ️</span>

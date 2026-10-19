@@ -56,7 +56,7 @@ const statusOf = (item: (typeof renamePreview.value)[number]): { label: string; 
 </script>
 
 <template>
-  <ModalContainer title="🏷️ 重命名（按选区）(FR-7 / BIZ-030)" max-width="880px" @close="emit('close')">
+  <ModalContainer title="🏷️ 重命名（按选区）" max-width="880px" @close="emit('close')">
     <div class="rename-modal-body">
       <div class="banner">
         <span>ℹ️</span>

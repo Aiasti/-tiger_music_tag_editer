@@ -121,7 +121,7 @@ export interface CoverCandidateItem {
   year: string
   releaseId?: string | null
   releaseGroupId?: string | null
-  /** 可直接由后端代理下载的图片地址（iTunes 源）；Cover Art Archive 候选为空。 */
+  /** 可直接由后端代理下载的图片地址（iTunes 源）。 */
   imageUrl?: string | null
   detail?: string | null
 }

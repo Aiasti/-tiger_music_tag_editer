@@ -121,7 +121,7 @@ const handleListen = async () => {
         <div class="seg-group" role="group" aria-label="导入音频">
           <button
             class="seg-btn primary"
-            title="选择单个或多个音频文件导入工作区 (FR-1)"
+            title="选择单个或多个音频文件导入工作区"
             :disabled="importing"
             @click="handleImportFiles"
           >
@@ -129,7 +129,7 @@ const handleListen = async () => {
           </button>
           <button
             class="seg-btn primary"
-            title="递归扫描文件夹批量导入音频 (FR-1)"
+            title="递归扫描文件夹批量导入音频"
             :disabled="importing"
             @click="handleImportFolder"
           >
@@ -142,14 +142,14 @@ const handleListen = async () => {
       <div class="toolbar-divider"></div>
 
       <div class="seg-group" role="group" aria-label="在线检索">
-        <button class="seg-btn" :disabled="!hasTracks" title="按专辑名、音频指纹与元数据匹配封面；只写入封面，不修改标签或歌词 (FR-6)" @click="openModal('cover-match')">
+        <button class="seg-btn" :disabled="!hasTracks" title="按专辑名、艺术家与标题匹配封面；只写入封面，不修改标签或歌词" @click="openModal('cover-match')">
           🖼️ 封面匹配
         </button>
-        <button class="seg-btn" :disabled="!hasTracks" title="按当前选区（未选则全部）获取 MusicBrainz/AcoustID 基础元数据候选 (FR-5)" @click="openModal('online-match')">
+        <button class="seg-btn" :disabled="!hasTracks" title="获取 MusicBrainz/AcoustID 基础元数据候选" @click="openModal('online-match')">
           🌐 在线匹配
         </button>
         <!-- BIZ-012: 独立歌词搜索专属按钮（歌词主入口，BIZ-018） -->
-        <button class="seg-btn" :disabled="!hasTracks" title="多源在线检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
+        <button class="seg-btn" :disabled="!hasTracks" title="在线检索并匹配内嵌歌词" @click="openModal('lyrics-search')">
           🎵 歌词搜索
         </button>
       </div>
@@ -160,7 +160,7 @@ const handleListen = async () => {
         <!-- BIZ-030：重命名（按选区）与归档（全工作区）拆为两个入口 -->
         <button
           class="btn"
-          title="按文件名模板重命名当前选中的曲目；未选中任何行时不可用 (FR-7 / BIZ-030)"
+          title="按文件名模板重命名当前选中的曲目；未选中任何行时不可用"
           :disabled="!hasTracks || selectedTrackIds.length === 0"
           @click="openModal('rename')"
         >
@@ -170,8 +170,8 @@ const handleListen = async () => {
           class="btn"
           :title="
             uncommittedCount > 0
-              ? '工作区存在未写回更改，请先「💾 确认写回」后再归档 (FR-7 / BIZ-030)'
-              : '按目录模板把工作区内全部文件归档到所选目录 (FR-7 / BIZ-030)'
+              ? '工作区存在未写回更改，请先「💾 确认写回」后再归档'
+              : '按目录模板把工作区内全部文件归档到所选目录'
           "
           :disabled="!hasTracks || uncommittedCount > 0"
           @click="handleArchive"
@@ -183,7 +183,7 @@ const handleListen = async () => {
       <div class="toolbar-divider"></div>
 
       <div class="toolbar-group">
-        <button class="btn primary writeback-btn" :disabled="!hasTracks" title="将当前编辑态标签与路径变更持久化写入磁盘 (FR-8)" @click="openModal('write-confirm')">
+        <button class="btn primary writeback-btn" :disabled="!hasTracks" title="将当前编辑态标签与路径变更持久化写入磁盘" @click="openModal('write-confirm')">
           <span>💾 确认写回</span>
           <span v-if="uncommittedCount > 0" class="badge-count">{{ uncommittedCount }}</span>
         </button>
@@ -208,7 +208,7 @@ const handleListen = async () => {
           </svg>
           试听
         </button>
-        <button class="btn ghost" title="外部播放器、在线服务与歌词源配置 (FR-9)" @click="openModal('settings')">
+        <button class="btn ghost" title="配置外部播放器与 fpcalc 路径" @click="openModal('settings')">
           ⚙️ 设置
         </button>
       </div>
@@ -217,19 +217,19 @@ const handleListen = async () => {
     <!-- A3: 次工具栏 (Secondary Toolbar)：对齐原型 .action-chip 胶囊 -->
     <div class="toolbar secondary-toolbar">
       <div class="toolbar-group">
-        <span class="action-chip scope-chip" title="批量类操作（批量编辑 / 按范围编号 / 在线匹配 / 歌词搜索）作用于当前选区（BIZ-015）">
+        <span class="action-chip scope-chip" title="批量编辑、批量编号、在线匹配与歌词搜索作用于当前选区">
           <span class="chip-dot"></span>
           已选 {{ selectedTrackIds.length }} 首
         </span>
-        <button class="action-chip" :disabled="!hasTracks" title="为当前选中曲目预览 / 选择 / 移除封面 (FR-6, BIZ-020)" @click="openModal('cover-edit')">
+        <button class="action-chip" :disabled="!hasTracks" title="为当前选中曲目预览、选择或移除封面" @click="openModal('cover-edit')">
           编辑封面
         </button>
-        <button class="action-chip" :disabled="!hasTracks" title="批量设置某一元数据字段；未选中曲目时作用于工作区全部可编辑曲目 (FR-4)" @click="openModal('batch-edit')">
+        <button class="action-chip" :disabled="!hasTracks" title="批量设置某一元数据字段；未选中曲目时作用于工作区全部可编辑曲目" @click="openModal('batch-edit')">
           批量编辑字段
         </button>
         <button
           class="action-chip"
-          title="按选区与碟号连续分配音轨号；未选中范围时不可触发 (FR-3 / BIZ-003)"
+          title="按选区与碟号连续分配音轨号；未选中范围时不可触发"
           :disabled="!hasTracks || selectedTrackIds.length === 0"
           @click="openModal('renumber-confirm')"
         >
@@ -240,7 +240,7 @@ const handleListen = async () => {
           :disabled="!hasTracks || !isWorkspaceDirty"
           :title="
             isWorkspaceDirty
-              ? '放弃未写回的标签、歌词、封面、路径及顺序改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)'
+              ? '放弃未写回的标签、歌词、封面、路径及顺序改动，重置至首次导入快照与顺序'
               : '工作区没有可重置的改动'
           "
           @click="handleRollback"

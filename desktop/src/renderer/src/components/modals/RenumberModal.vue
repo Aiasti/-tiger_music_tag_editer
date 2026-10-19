@@ -34,7 +34,7 @@ const handleConfirm = () => {
 </script>
 
 <template>
-  <ModalContainer title="🔢 批量编号（按碟号分组）(FR-3 / BIZ-003)" max-width="560px" @close="emit('close')">
+  <ModalContainer title="🔢 批量编号（按碟号分组）" max-width="560px" @close="emit('close')">
     <div class="modal-body-form">
       <div class="banner" :class="missing.length > 0 ? 'warning' : 'info'">
         <span>{{ missing.length > 0 ? '⚠️' : 'ℹ️' }}</span>

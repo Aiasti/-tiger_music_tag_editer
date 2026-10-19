@@ -146,7 +146,7 @@ const canApply = computed(
 </script>
 
 <template>
-  <ModalContainer title="🖼️ 编辑封面 (FR-6)" max-width="520px" @close="emit('close')">
+  <ModalContainer title="🖼️ 编辑封面" max-width="520px" @close="emit('close')">
     <div class="cover-edit-body">
       <template v-if="scopeTracks.length > 0">
         <!-- 作用范围（BIZ-015 / BIZ-021） -->

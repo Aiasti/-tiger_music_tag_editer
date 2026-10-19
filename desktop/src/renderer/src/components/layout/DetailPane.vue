@@ -209,7 +209,7 @@ const displayCover = computed(() => {
       </section>
 
       <!-- 内嵌歌词 (FR-6)：只读预览；编辑入口收敛到工具栏「🎵 歌词搜索」弹窗（BIZ-018、BIZ-020） -->
-      <section>
+      <section class="lyrics-section">
         <div class="section-head">
           <h3 class="section-title">内嵌歌词</h3>
         </div>
@@ -242,6 +242,7 @@ const displayCover = computed(() => {
 /* 保留滚轮滚动，但隐藏滚动条以免影响观感（BIZ-017 反馈） */
 .detail-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 14px 16px;
   display: flex;
@@ -249,6 +250,10 @@ const displayCover = computed(() => {
   gap: 14px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+/* 除歌词外的区块保持内容高度；高度不足时由外层滚动，不挤压区块 */
+.detail-scroll > section:not(.lyrics-section) {
+  flex-shrink: 0;
 }
 .detail-scroll::-webkit-scrollbar {
   width: 0;
@@ -391,15 +396,22 @@ const displayCover = computed(() => {
   color: var(--text-muted);
 }
 
-/* 内嵌歌词 */
+/* 内嵌歌词：占据详情面板剩余高度，随窗口高度伸缩 */
+.lyrics-section {
+  flex: 1 1 auto;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 .lyrics-box {
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 8px;
-  max-height: 84px;
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);

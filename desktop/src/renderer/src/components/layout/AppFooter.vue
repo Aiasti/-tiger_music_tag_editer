@@ -32,7 +32,7 @@ onMounted(async () => {
       <button
         v-if="skipped.length > 0"
         class="skip-btn"
-        title="查看导入时因解析损坏被跳过的文件清单 (FR-1)"
+        title="查看导入时因解析损坏被跳过的文件清单"
         @click="openModal('skip-list')"
       >
         ⚠️ {{ skipped.length }} 项被跳过 (点击查看详情)

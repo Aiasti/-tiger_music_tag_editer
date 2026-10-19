@@ -127,7 +127,7 @@ const handleCommit = async () => {
 </script>
 
 <template>
-  <ModalContainer title="💾 确认写入文件 (FR-7 / 持久化落盘)" max-width="760px" @close="emit('close')">
+  <ModalContainer title="💾 确认写入文件（持久化落盘）" max-width="760px" @close="emit('close')">
     <!-- 写回前：待写入清单（真实差异） -->
     <div v-if="!requested" class="write-modal-body">
       <div class="banner warning">

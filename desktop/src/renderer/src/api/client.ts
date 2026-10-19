@@ -161,7 +161,7 @@ export function matchLyrics(track: TrackItem, keyword = ''): Promise<LyricsMatch
   })
 }
 
-/** 单曲封面匹配（FR-6、DEV-004）：复用元数据/指纹结果，由后端查询 Cover Art Archive。 */
+/** 单曲封面匹配（FR-6、DEV-004）：由后端通过 iTunes 检索封面候选。 */
 export function matchCover(track: TrackItem, keyword = ''): Promise<CoverMatchResult> {
   return request<CoverMatchResult>('/api/match/cover', {
     method: 'POST',

@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
-import { useModals } from '../../composables/useModals'
 import { matchLyrics } from '../../api/client'
 import { trackBaseName } from '../../utils/trackText'
 import type { LyricsCandidateItem } from '../../types'
@@ -13,17 +12,7 @@ const emit = defineEmits<{
 
 const SKIP_ID = 'skip'
 
-const { openModal } = useModals()
 const { operationScope, selectedTracks, applyLyricsToTrack } = useWorkspace()
-
-/** 歌词源：首版仅 LRCLIB 真实接入，其余源保留入口但标记未接入（BIZ-012）。 */
-const sources = ref([
-  { key: 'lrclib', label: 'LRCLIB (LRC/纯文本)', available: true, enabled: true },
-  { key: 'netease', label: '网易云音乐 (Netease)', available: false, enabled: false },
-  { key: 'qqmusic', label: 'QQ 音乐 (QQMusic)', available: false, enabled: false },
-  { key: 'applemusic', label: 'Apple Music', available: false, enabled: false },
-  { key: 'lastfm', label: 'Last.fm', available: false, enabled: false }
-])
 
 const searchKeyword = ref('')
 const diffMode = ref<'split' | 'candidate'>('split')
@@ -226,7 +215,7 @@ const handleApplyBatch = () => {
 
 <template>
   <ModalContainer
-    title="🎵 批量在线歌词搜索与匹配 (FR-6 / BIZ-012)"
+    title="🎵 批量在线歌词搜索与匹配"
     max-width="980px"
     @close="emit('close')"
   >
@@ -239,33 +228,6 @@ const handleApplyBatch = () => {
           · 共 <strong>{{ scopeTracks.length }}</strong> 首
         </span>
         <span class="scope-tip">批量应用仅装配至内存编辑态，需点击「💾 确认写回」才落盘</span>
-      </div>
-
-      <!-- 歌词源启停与优先级 -->
-      <div class="sources-bar">
-        <div class="sources-left">
-          <strong class="sources-label">歌词检索来源：</strong>
-          <div class="source-pill-group">
-            <label
-              v-for="src in sources"
-              :key="src.key"
-              class="source-pill"
-              :class="{ active: src.enabled && src.available, disabled: !src.available }"
-            >
-              <input v-model="src.enabled" type="checkbox" :disabled="!src.available" />
-              <span class="source-dot"></span>
-              <span>{{ src.label }}</span>
-              <span class="source-latency">{{ src.available ? '已接入' : '未接入' }}</span>
-            </label>
-          </div>
-        </div>
-        <button
-          class="btn ghost sm-btn"
-          title="前往设置面板调整歌词源检索顺序与超时"
-          @click="openModal('settings')"
-        >
-          ⚙️ 调整优先级与超时
-        </button>
       </div>
 
       <!-- 搜索控制栏 -->
@@ -420,7 +382,7 @@ const handleApplyBatch = () => {
       </div>
 
       <div class="persist-alert">
-        🛡️ <strong>持久化隔离 (FR-4 / FR-6 / BIZ-012)</strong>：应用在线候选歌词仅暂存至内存编辑态并标记为「已编辑」，绝不直接写入磁盘；必须在主工具栏点击「💾 确认写回」后才最终落盘。
+        🛡️ <strong>持久化隔离</strong>：应用在线候选歌词仅暂存至内存编辑态并标记为「已编辑」，绝不直接写入磁盘；必须在主工具栏点击「💾 确认写回」后才最终落盘。
       </div>
     </div>
 
@@ -465,66 +427,6 @@ const handleApplyBatch = () => {
 }
 .scope-tip {
   color: var(--text-muted);
-}
-
-.sources-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-sm);
-}
-.sources-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.sources-label {
-  font-size: var(--font-xs);
-  color: var(--text-bright);
-}
-.source-pill-group {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.source-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--bg-surface);
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  cursor: pointer;
-  user-select: none;
-}
-.source-pill.active {
-  border-color: var(--accent);
-  color: var(--text-main);
-}
-.source-pill.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.source-pill input {
-  display: none;
-}
-.source-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--border-strong);
-}
-.source-pill.active .source-dot {
-  background: var(--success);
-}
-.source-latency {
-  color: var(--text-faint);
-  font-size: 10px;
-  font-family: var(--font-mono);
 }
 
 .sm-btn {

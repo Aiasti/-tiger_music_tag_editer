@@ -8,10 +8,10 @@ const { skipped } = useWorkspace()
 </script>
 
 <template>
-  <ModalContainer title="⚠️ 导入跳过项与异常清单 (FR-1)" max-width="680px">
+  <ModalContainer title="⚠️ 导入跳过项与异常清单" max-width="680px">
     <p class="intro-text">
       导入时对无法读取的音频（损坏、无权限、被占用）做了单文件隔离，未阻断其余音频导入；
-      非音频扩展名的文件会被静默忽略，不出现在此处（BIZ-014）。
+      非音频扩展名的文件会被静默忽略，不出现在此处。
     </p>
 
     <div v-if="skipped.length === 0" class="empty-hint">本次导入没有跳过项。</div>

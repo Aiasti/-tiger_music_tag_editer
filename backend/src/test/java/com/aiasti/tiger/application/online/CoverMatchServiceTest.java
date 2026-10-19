@@ -2,80 +2,67 @@ package com.aiasti.tiger.application.online;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.aiasti.tiger.application.workspace.Workspace;
 import com.aiasti.tiger.domain.model.CoverCandidate;
-import com.aiasti.tiger.domain.model.MetadataCandidate;
 import com.aiasti.tiger.domain.model.TagField;
 import com.aiasti.tiger.domain.model.TrackTags;
 import com.aiasti.tiger.domain.port.CoverSearchPort;
-import com.aiasti.tiger.domain.port.MusicBrainzPort;
 
-/** S4 验证：封面匹配复用元数据/指纹结果并按专辑名回退（FR-6、DEV-004）。 */
+/** 封面匹配仅使用 iTunes 候选（FR-6、DEV-004、BIZ-048）。 */
 class CoverMatchServiceTest {
 
     @TempDir
     Path tempDir;
 
     @Test
-    void mapsMetadataCandidatesWithReleaseIdsToCoverCandidates() throws Exception {
+    void returnsItunesCandidatesSortedByScoreAndLimited() throws Exception {
         Workspace workspace = workspaceWithTrack();
-        OnlineMetadataService metadata = mock(OnlineMetadataService.class);
-        when(metadata.match(any())).thenReturn(new MetadataMatchResult(
-                1L, "Song", List.of(
-                        candidate("r1", "MusicBrainz", 95, "Song", "Album", "rg1", "rel1"),
-                        candidate("r2", "MusicBrainz", 90, "Song", "Album", "", "")),
-                List.of(), true, true));
-        CoverMatchService service = new CoverMatchService(metadata, new FakeMusicBrainz(List.of()), new FakeCoverSearch(List.of()), workspace);
+        List<CoverCandidate> candidates = new ArrayList<>();
+        for (int score = 70; score <= 120; score += 10) {
+            candidates.add(itunes("itunes-" + score, score));
+        }
+        CoverMatchService service = new CoverMatchService(new FakeCoverSearch(candidates), workspace);
 
         CoverMatchResult result = service.match(query());
 
-        assertEquals(1, result.candidates().size(), "没有发行组/发行版 ID 的候选不应用于封面");
-        assertEquals("rg1", result.candidates().get(0).releaseGroupId());
-        assertEquals("Album", result.candidates().get(0).album());
-        assertTrue(result.candidates().get(0).source().contains("Cover Art Archive"));
+        assertEquals(5, result.candidates().size());
+        assertEquals("itunes-120", result.candidates().get(0).id());
+        assertTrue(result.candidates().get(0).imageUrl().contains("mzstatic.com"));
     }
 
     @Test
-    void fallsBackToAlbumReleaseSearch() throws Exception {
+    void fallsBackToTrackTagsWhenQueryFieldsAreBlank() throws Exception {
         Workspace workspace = workspaceWithTrack();
-        OnlineMetadataService metadata = mock(OnlineMetadataService.class);
-        when(metadata.match(any())).thenReturn(new MetadataMatchResult(
-                1L, "Song", List.of(), List.of("未找到匹配候选"), false, false));
-        FakeMusicBrainz musicBrainz = new FakeMusicBrainz(List.of(
-                candidate("release-rel1", "MusicBrainz", 88, "Album", "Album", "rg1", "rel1")));
-        CoverMatchService service = new CoverMatchService(metadata, musicBrainz, new FakeCoverSearch(List.of()), workspace);
+        FakeCoverSearch coverSearch = new FakeCoverSearch(List.of(itunes("itunes-1", 90)));
+        CoverMatchService service = new CoverMatchService(coverSearch, workspace);
 
-        CoverMatchResult result = service.match(query());
+        CoverMatchResult result = service.match(
+                new TrackMatchQuery(1L, "", "", "", "", "", "", "", ""));
 
-        assertEquals(1, result.candidates().size());
-        assertEquals("rg1", result.candidates().get(0).releaseGroupId());
-        assertEquals("Album", musicBrainz.lastAlbum);
-        assertTrue(result.warnings().stream().noneMatch(message -> message.contains("未找到匹配候选")),
-                "封面回退成功时不应保留录音检索的空结果告警");
+        assertEquals("Song", coverSearch.lastTitle);
+        assertEquals("Album", coverSearch.lastAlbum);
+        assertEquals("Artist", coverSearch.lastArtist);
+        assertEquals("Song", result.keyword());
     }
 
     @Test
-    void warnsWhenNoCandidateHasCoverSource() throws Exception {
+    void warnsWhenItunesSearchFails() throws Exception {
         Workspace workspace = workspaceWithTrack();
-        OnlineMetadataService metadata = mock(OnlineMetadataService.class);
-        when(metadata.match(any())).thenReturn(new MetadataMatchResult(
-                1L, "Song", List.of(candidate("r1", "MusicBrainz", 90, "Song", "Album", "", "")),
-                List.of(), false, false));
-        CoverMatchService service = new CoverMatchService(metadata, new FakeMusicBrainz(List.of()), new FakeCoverSearch(List.of()), workspace);
+        CoverMatchService service = new CoverMatchService(
+                new FakeCoverSearch(List.of(), new IllegalStateException("network down")), workspace);
 
         CoverMatchResult result = service.match(query());
 
         assertTrue(result.candidates().isEmpty());
+        assertTrue(result.warnings().stream().anyMatch(message -> message.contains("iTunes 封面检索失败")));
         assertTrue(result.warnings().stream().anyMatch(message -> message.contains("未找到可用封面候选")));
     }
 
@@ -83,35 +70,13 @@ class CoverMatchServiceTest {
     void doesNotModifyLyrics() throws Exception {
         Workspace workspace = workspaceWithTrack();
         String lyrics = "[00:01.00]keep me";
-        OnlineMetadataService metadata = mock(OnlineMetadataService.class);
-        when(metadata.match(any())).thenReturn(new MetadataMatchResult(
-                1L, "Song", List.of(candidate("r1", "MusicBrainz", 95, "Song", "Album", "rg1", "rel1")),
-                List.of(), true, true));
-        CoverMatchService service = new CoverMatchService(metadata, new FakeMusicBrainz(List.of()), new FakeCoverSearch(List.of()), workspace);
+        CoverMatchService service = new CoverMatchService(
+                new FakeCoverSearch(List.of(itunes("itunes-1", 95))), workspace);
 
         service.match(query());
 
         assertEquals(lyrics, workspace.find(1L).orElseThrow().current()
                 .value(TagField.LYRICS).orElse(""), "封面匹配不得改动歌词");
-    }
-
-    @Test
-    void putsItunesCandidateWithImageUrlFirst() throws Exception {
-        Workspace workspace = workspaceWithTrack();
-        OnlineMetadataService metadata = mock(OnlineMetadataService.class);
-        when(metadata.match(any())).thenReturn(new MetadataMatchResult(
-                1L, "Song", List.of(candidate("r1", "MusicBrainz", 95, "Song", "Album", "rg1", "rel1")),
-                List.of(), true, true));
-        CoverCandidate itunes = new CoverCandidate("itunes-1", "iTunes", 90, "Album", "Artist",
-                "Album", "2020", "", "", "https://is1-ssl.mzstatic.com/a.jpg/600x600bb.jpg", "iTunes");
-        CoverMatchService service = new CoverMatchService(metadata, new FakeMusicBrainz(List.of()),
-                new FakeCoverSearch(List.of(itunes)), workspace);
-
-        CoverMatchResult result = service.match(query());
-
-        assertEquals(2, result.candidates().size());
-        assertEquals("itunes-1", result.candidates().get(0).id(), "可直接下载的 iTunes 封面应排在前面");
-        assertTrue(result.candidates().get(0).imageUrl().contains("mzstatic.com"));
     }
 
     private Workspace workspaceWithTrack() throws Exception {
@@ -131,42 +96,36 @@ class CoverMatchServiceTest {
         return new TrackMatchQuery(1L, "Song", "Artist", "Album", "Album Artist", "1", "1", "2020", "");
     }
 
-    private static MetadataCandidate candidate(String id, String source, int score, String title,
-                                               String album, String releaseGroupId, String releaseId) {
-        return new MetadataCandidate(id, source, score, title, "Artist", album, "Album Artist",
-                "1", "1", "2020", "", releaseId, releaseGroupId, "detail");
+    private static CoverCandidate itunes(String id, int score) {
+        return new CoverCandidate(id, "iTunes", score, "Album", "Artist",
+                "Album", "2020", "", "", "https://is1-ssl.mzstatic.com/" + id + "/600x600bb.jpg", "iTunes");
     }
 
     private static final class FakeCoverSearch implements CoverSearchPort {
         private final List<CoverCandidate> candidates;
+        private final RuntimeException failure;
+        private String lastAlbum;
+        private String lastArtist;
+        private String lastTitle;
 
         private FakeCoverSearch(List<CoverCandidate> candidates) {
+            this(candidates, null);
+        }
+
+        private FakeCoverSearch(List<CoverCandidate> candidates, RuntimeException failure) {
             this.candidates = candidates;
+            this.failure = failure;
         }
 
         @Override
         public List<CoverCandidate> search(String album, String artist, String title) {
-            return candidates;
-        }
-    }
-
-    private static final class FakeMusicBrainz implements MusicBrainzPort {
-        private final List<MetadataCandidate> releases;
-        private String lastAlbum;
-
-        private FakeMusicBrainz(List<MetadataCandidate> releases) {
-            this.releases = releases;
-        }
-
-        @Override
-        public List<MetadataCandidate> search(String title, String artist, String album, String keyword) {
-            return List.of();
-        }
-
-        @Override
-        public List<MetadataCandidate> searchReleases(String album, String artist) {
             this.lastAlbum = album;
-            return releases;
+            this.lastArtist = artist;
+            this.lastTitle = title;
+            if (failure != null) {
+                throw failure;
+            }
+            return candidates;
         }
     }
 }

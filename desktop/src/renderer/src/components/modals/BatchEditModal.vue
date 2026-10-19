@@ -62,7 +62,7 @@ const handleApply = () => {
 </script>
 
 <template>
-  <ModalContainer title="⚡ 批量编辑字段 (FR-4)" max-width="700px" @close="emit('close')">
+  <ModalContainer title="⚡ 批量编辑字段" max-width="700px" @close="emit('close')">
     <div class="batch-modal-body">
       <div class="banner info">
         <span>💡</span>
