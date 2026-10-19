@@ -34,7 +34,7 @@ public class AcoustIdClient implements AcoustIdPort {
     private final RestClient client;
     private final RequestThrottle throttle;
     private final FingerprintPort fingerprint;
-    private final String apiKey;
+    private final OnlineProperties properties;
 
     public AcoustIdClient(RestClient.Builder builder, OnlineProperties properties, FingerprintPort fingerprint) {
         OnlineProperties.AcoustId config = properties.getAcoustid();
@@ -47,18 +47,24 @@ public class AcoustIdClient implements AcoustIdPort {
                 .build();
         this.throttle = new RequestThrottle(config.getRequestsPerSecond());
         this.fingerprint = fingerprint;
-        this.apiKey = config.getApiKey() == null ? "" : config.getApiKey().trim();
+        this.properties = properties;
+    }
+
+    /** API Key 可在运行期通过设置接口更新，因此每次读取当前配置（S5、BIZ-035）。 */
+    private String apiKey() {
+        String key = properties.getAcoustid().getApiKey();
+        return key == null ? "" : key.trim();
     }
 
     @Override
     public boolean isAvailable() {
-        return !apiKey.isBlank() && fingerprint.isAvailable();
+        return !apiKey().isBlank() && fingerprint.isAvailable();
     }
 
     @Override
     public String unavailableReason() {
-        if (apiKey.isBlank()) {
-            return "未配置 AcoustID API Key（环境变量 TIGER_ACOUSTID_KEY），已仅使用 MusicBrainz 文本检索";
+        if (apiKey().isBlank()) {
+            return "AcoustID API Key 未生效（应用内置默认或环境变量 TIGER_ACOUSTID_KEY 均为空），已仅使用 MusicBrainz 文本检索";
         }
         if (!fingerprint.isAvailable()) {
             return "未找到 fpcalc（Chromaprint），无法生成音频指纹，已仅使用 MusicBrainz 文本检索";
@@ -77,7 +83,7 @@ public class AcoustIdClient implements AcoustIdPort {
         }
         Fingerprint value = generated.get();
         long duration = Math.max(1, Math.round(value.durationSeconds()));
-        String body = formBody(apiKey, duration, value.fingerprint());
+        String body = formBody(apiKey(), duration, value.fingerprint());
         JsonNode root = execute(() -> client.post()
                 .uri("/lookup")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)

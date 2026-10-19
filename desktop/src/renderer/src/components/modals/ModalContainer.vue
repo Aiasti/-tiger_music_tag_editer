@@ -4,6 +4,8 @@ import { useModals } from '../../composables/useModals'
 defineProps<{
   title: string
   maxWidth?: string
+  /** 是否显示右上角关闭按钮；确认框等必须做出选择的场景可关闭。 */
+  closable?: boolean
 }>()
 
 const { closeModal } = useModals()
@@ -20,7 +22,7 @@ const handleBackdropClick = (e: MouseEvent) => {
     <div class="modal-window" :style="{ maxWidth: maxWidth || '640px' }" @click.stop>
       <div class="modal-header">
         <span class="modal-title">{{ title }}</span>
-        <button class="modal-close-btn" title="关闭 (ESC)" @click="closeModal">✕</button>
+        <button v-if="closable !== false" class="modal-close-btn" title="关闭 (ESC)" @click="closeModal">✕</button>
       </div>
 
       <div class="modal-body">

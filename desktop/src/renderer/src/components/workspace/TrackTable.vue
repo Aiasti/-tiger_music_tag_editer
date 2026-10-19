@@ -46,20 +46,18 @@ const tableWidth = computed(() => visibleColumns.value.reduce((sum, col) => sum 
 const STATUS_TEXT: Record<TrackItem['status'], string> = {
   saved: '已保存（无未提交修改）',
   edited: '已编辑（待提交）',
-  matched: '已匹配（待提交）',
-  failed: '读取失败'
+  failed: '失败（需人工处理）'
 }
 
 /**
- * 单格染色（BIZ-022，参考原型 `td.cell-edited` / `td.cell-matched`）：
- * 当前值与**最近落盘值**不同的可编辑单元格加浅色底与左侧色条，颜色随曲目状态（FR-8 差异基准）。
+ * 单格染色（BIZ-022、BIZ-037）：当前值与**最近落盘值**不同的可编辑单元格
+ * 统一加浅色底与左侧金黄条；在线匹配应用后同样按「已编辑」染色。
  */
 const cellStateClass = (track: TrackItem, field: EditableTagField): string => {
-  if (track.status === 'failed') return ''
   const current = track.tags[field] || ''
   const written = track.lastWritten[field] || ''
   if (current === written) return ''
-  return track.status === 'matched' ? 'cell-matched' : 'cell-edited'
+  return 'cell-edited'
 }
 
 /** 待写回目标文件名（去扩展名）；无待写回路径时返回空串（BIZ-030）。 */
@@ -716,22 +714,14 @@ td.col-status {
 .status-dot.edited {
   background: var(--state-edited);
 }
-.status-dot.matched {
-  background: var(--state-matched);
-}
 .status-dot.failed {
   background: var(--state-failed);
 }
 
-/* 已更改未写回的单格染色（BIZ-022，参考原型 td.cell-edited / td.cell-matched） */
+/* 已更改未写回的单格染色（BIZ-022、BIZ-037，参考原型 td.cell-edited） */
 td.cell-edited {
   background: var(--state-edited-soft);
   box-shadow: inset 3px 0 0 var(--state-edited);
-  color: var(--text-bright);
-}
-td.cell-matched {
-  background: var(--state-matched-soft);
-  box-shadow: inset 3px 0 0 var(--state-matched);
   color: var(--text-bright);
 }
 

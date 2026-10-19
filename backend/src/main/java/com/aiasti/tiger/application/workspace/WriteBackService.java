@@ -403,7 +403,7 @@ public class WriteBackService {
         if (backup != null && Files.exists(backup)) {
             detail.append("，恢复材料保留在 ").append(backup);
         }
-        detail.append("；建议：人工核对文件后决定恢复、重试或移出工作区");
+        detail.append("；建议：请核对文件后决定恢复、重试、查看文件占用或移出工作区");
         return detail.toString();
     }
 

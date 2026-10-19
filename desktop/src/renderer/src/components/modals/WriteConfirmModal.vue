@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
+import { useSettings } from '../../composables/useSettings'
+import { useConfirm } from '../../composables/useConfirm'
 import { trackBaseName } from '../../utils/trackText'
 import type { EditableTagField, TrackItem, WriteOutcomeStatus } from '../../types'
 
@@ -9,7 +11,17 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { tracks, pendingCovers, pendingPaths, commitAllWrites, lastWriteOutcomes, writing } = useWorkspace()
+const {
+  tracks,
+  pendingCovers,
+  pendingPaths,
+  commitAllWrites,
+  lastWriteOutcomes,
+  writing,
+  clearSelection
+} = useWorkspace()
+const { stopPlayer } = useSettings()
+const { confirm } = useConfirm()
 
 /** 12 个可写回元数据字段的中文标签（与表格列一致）。 */
 const FIELD_LABELS: Record<EditableTagField, string> = {
@@ -76,7 +88,39 @@ const summary = computed(() => {
 
 const trackOf = (id: number): TrackItem | undefined => tracks.value.find((t) => t.id === id)
 
+/** 是否有失败/未执行项：可能由播放器占用文件导致，提供释放占用入口。 */
+const hasWriteIssues = computed(
+  () =>
+    summary.value['failed-manual'] +
+      summary.value['failed-restored'] +
+      summary.value.blocked +
+      summary.value.stale +
+      summary.value.partial >
+    0
+)
+
+const handleStopPlayer = async () => {
+  try {
+    await stopPlayer()
+    await confirm({
+      title: '已发送停止命令',
+      message: '已向播放器发送「停止播放」命令（foobar2000 /stop），请稍后重试写回。',
+      showCancel: false
+    })
+    // 停止播放流程结束后关闭写回模态窗，由用户重新发起写回
+    emit('close')
+  } catch (error) {
+    await confirm({
+      title: '停止播放失败',
+      message: error instanceof Error ? error.message : String(error),
+      showCancel: false
+    })
+  }
+}
+
 const handleCommit = async () => {
+  // 与「取消选定」一致：发起写回后清空表格选区
+  clearSelection()
   requested.value = true
   await commitAllWrites()
 }
@@ -192,8 +236,12 @@ const handleCommit = async () => {
           被外部修改的文件未被写入。可关闭本窗口后重新导入或核对文件，再重试写回。
         </p>
         <p v-if="summary['failed-manual'] > 0" class="empty-hint failed">
-          存在未恢复的失败项，请按说明人工核对文件后决定恢复、重试或移出工作区。
+          请核对文件后决定恢复、重试、查看文件占用或移出工作区。
         </p>
+        <div v-if="hasWriteIssues" class="release-player">
+          <span class="release-label">文件被播放器占用时（foobar2000）：</span>
+          <button class="link-btn danger" @click="handleStopPlayer">停止播放</button>
+        </div>
       </div>
     </div>
 
@@ -242,6 +290,29 @@ const handleCommit = async () => {
 .banner-text p {
   margin: 4px 0 0 0;
   color: var(--text-muted);
+}
+
+.release-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.release-label {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.link-btn {
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  color: var(--accent);
+  font-size: 11.5px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.link-btn.danger {
+  color: var(--state-failed);
 }
 
 .section-title {

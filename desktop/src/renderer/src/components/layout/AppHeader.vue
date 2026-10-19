@@ -2,11 +2,24 @@
 import { useTheme } from '../../composables/useTheme'
 import { useModals } from '../../composables/useModals'
 import { useWorkspace } from '../../composables/useWorkspace'
+import { useSettings } from '../../composables/useSettings'
+import { useConfirm } from '../../composables/useConfirm'
 
 const { theme, toggleTheme } = useTheme()
 const { openModal } = useModals()
-const { uncommittedCount, rollbackAll, importFromDialog, importing, skipped, selectedTrackIds } =
-  useWorkspace()
+const { confirm } = useConfirm()
+const {
+  uncommittedCount,
+  rollbackAll,
+  importFromDialog,
+  importing,
+  skipped,
+  selectedTrackIds,
+  selectedTrack,
+  selectedTracks,
+  isWorkspaceDirty
+} = useWorkspace()
+const { playerConfigured, playTrack } = useSettings()
 
 const runImport = async (mode: 'files' | 'folder') => {
   await importFromDialog(mode)
@@ -20,8 +33,24 @@ const handleImportFiles = () => runImport('files')
 
 const handleImportFolder = () => runImport('folder')
 
-const handleRollback = () => {
-  if (confirm('确定要将工作区所有未写回改动恢复至首次导入快照吗？')) {
+const minimizeWindow = () => {
+  void window.api.minimizeWindow()
+}
+
+const toggleMaximizeWindow = () => {
+  void window.api.toggleMaximizeWindow()
+}
+
+const closeWindow = () => {
+  void window.api.closeWindow()
+}
+
+const handleRollback = async () => {
+  const confirmed = await confirm({
+    title: '重置改动',
+    message: '确定要将工作区所有未写回改动恢复至首次导入快照吗？'
+  })
+  if (confirmed) {
     rollbackAll()
   }
 }
@@ -32,17 +61,55 @@ const handleRollback = () => {
  * ② 兜底守卫：若仍被触发，先询问是否写回，选「确定」跳转到「确认写回」弹窗，
  *    选「取消」则不执行归档、未写回内容保持原样。
  */
-const handleArchive = () => {
+const handleArchive = async () => {
   if (uncommittedCount.value > 0) {
-    const goWriteBack = confirm(
-      `工作区存在 ${uncommittedCount.value} 首曲目的未写回更改。\n是否先写回？\n（选择「取消」将不执行归档，未写回内容保持原样）`
-    )
+    const goWriteBack = await confirm({
+      title: '归档',
+      message: `工作区存在 ${uncommittedCount.value} 首曲目的未写回更改。\n是否先写回？选择「取消」将不执行归档，未写回内容保持原样。`
+    })
     if (goWriteBack) {
       openModal('write-confirm')
     }
     return
   }
   openModal('archive')
+}
+
+/** 外部播放器试听（FR-9、S5）：多选时把全部选中曲目交给播放器。 */
+const handleListen = async () => {
+  const targets =
+    selectedTracks.value.length > 0
+      ? selectedTracks.value
+      : selectedTrack.value
+        ? [selectedTrack.value]
+        : []
+  if (targets.length === 0) {
+    await confirm({
+      title: '试听',
+      message: '请先在工作区选中要试听的曲目。',
+      showCancel: false
+    })
+    return
+  }
+  if (!playerConfigured.value) {
+    const goSettings = await confirm({
+      title: '试听',
+      message: '尚未配置外部播放器，是否前往设置？'
+    })
+    if (goSettings) {
+      openModal('settings')
+    }
+    return
+  }
+  try {
+    await playTrack(targets.map((track) => track.filePath))
+  } catch (error) {
+    await confirm({
+      title: '试听失败',
+      message: error instanceof Error ? error.message : String(error),
+      showCancel: false
+    })
+  }
 }
 </script>
 
@@ -53,16 +120,16 @@ const handleArchive = () => {
       <div class="app-brand">
         <span class="app-icon">🐯</span>
         <span class="app-name">Tiger Music Tag Editor</span>
-        <span class="app-version">v0.1.0-alpha (S4 在线匹配)</span>
+        <span class="app-version">v0.1.0-alpha (S5 试听与首选项)</span>
       </div>
       <div class="window-controls">
         <button class="theme-btn" :title="theme === 'dark' ? '切换为浅色主题 (One Light)' : '切换为暗色主题 (One Dark)'" @click="toggleTheme">
           <span v-if="theme === 'dark'">☀️ 浅色</span>
           <span v-else>🌙 暗色</span>
         </button>
-        <button class="win-btn" title="最小化">—</button>
-        <button class="win-btn" title="最大化">▢</button>
-        <button class="win-btn close" title="关闭">✕</button>
+        <button class="win-btn" title="最小化" @click="minimizeWindow">—</button>
+        <button class="win-btn" title="最大化 / 还原" @click="toggleMaximizeWindow">▢</button>
+        <button class="win-btn close" title="关闭" @click="closeWindow">✕</button>
       </div>
     </div>
 
@@ -141,15 +208,26 @@ const handleArchive = () => {
         </button>
       </div>
 
-      <!-- 右侧辅助入口：试听（未实现，禁用并提示）与设置 (FR-9) -->
+      <!-- 右侧辅助入口：外部播放器试听 (FR-9) 与设置 -->
       <div class="toolbar-group right">
-        <span
-          class="disabled-slot"
-          title="试听功能尚未实现（计划 S5）：需先在「设置」中配置外部播放器与启动参数"
+        <button
+          class="btn ghost listen-btn"
+          :disabled="selectedTracks.length === 0 && !selectedTrack"
+          :title="
+            playerConfigured
+              ? selectedTracks.length > 1
+                ? `用外部播放器打开选中的 ${selectedTracks.length} 首曲目`
+                : '用外部播放器打开当前选中曲目'
+              : '试听需先在「设置」中配置外部播放器与启动参数'
+          "
+          @click="handleListen"
         >
-          <button class="btn ghost" disabled>▶ 试听</button>
-        </span>
-        <button class="btn ghost" title="外部播放器路径与请求节流配置 (FR-9)" @click="openModal('settings')">
+          <svg class="play-icon" viewBox="0 0 10 12" aria-hidden="true">
+            <path d="M0 0 L10 6 L0 12 Z" />
+          </svg>
+          试听
+        </button>
+        <button class="btn ghost" title="外部播放器、在线服务与歌词源配置 (FR-9)" @click="openModal('settings')">
           ⚙️ 设置
         </button>
       </div>
@@ -176,7 +254,16 @@ const handleArchive = () => {
         >
           批量编号
         </button>
-        <button class="action-chip" title="放弃未写回改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)" @click="handleRollback">
+        <button
+          class="action-chip"
+          :disabled="!isWorkspaceDirty"
+          :title="
+            isWorkspaceDirty
+              ? '放弃未写回的标签、歌词、封面、路径及顺序改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)'
+              : '工作区没有可重置的改动'
+          "
+          @click="handleRollback"
+        >
           重置改动
         </button>
       </div>
@@ -331,6 +418,12 @@ const handleArchive = () => {
   border-color: var(--accent-hover);
   color: var(--accent-contrast);
 }
+.listen-btn .play-icon {
+  width: 9px;
+  height: 11px;
+  flex-shrink: 0;
+  fill: var(--accent);
+}
 .toolbar .btn.ghost {
   background: transparent;
   border-color: transparent;
@@ -422,10 +515,6 @@ const handleArchive = () => {
 .importing-hint {
   font-size: 11.5px;
   color: var(--accent);
-}
-/* 未实现功能：禁用按钮，说明放在外层元素以便仍可显示提示 */
-.disabled-slot {
-  display: inline-flex;
 }
 .writeback-btn {
   position: relative;

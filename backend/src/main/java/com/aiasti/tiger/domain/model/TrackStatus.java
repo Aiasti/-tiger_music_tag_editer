@@ -5,7 +5,6 @@ public enum TrackStatus {
 
     SAVED("saved"),
     EDITED("edited"),
-    MATCHED("matched"),
     FAILED("failed");
 
     private final String contractValue;

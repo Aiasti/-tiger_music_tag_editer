@@ -25,6 +25,7 @@ public class MusicBrainzClient implements MusicBrainzPort {
 
     private final RestClient client;
     private final RequestThrottle throttle;
+    private final OnlineProperties properties;
 
     public MusicBrainzClient(RestClient.Builder builder, OnlineProperties properties) {
         OnlineProperties.MusicBrainz config = properties.getMusicbrainz();
@@ -34,9 +35,14 @@ public class MusicBrainzClient implements MusicBrainzPort {
         this.client = builder.clone()
                 .baseUrl(config.getBaseUrl())
                 .requestFactory(factory)
-                .defaultHeader(HttpHeaders.USER_AGENT, config.getUserAgent())
                 .build();
         this.throttle = new RequestThrottle(config.getRequestsPerSecond());
+        this.properties = properties;
+    }
+
+    /** User-Agent 可在运行期通过设置接口更新，因此每次请求读取当前配置（S5、BIZ-035）。 */
+    private String userAgent() {
+        return properties.getMusicbrainz().getUserAgent();
     }
 
     @Override
@@ -51,6 +57,7 @@ public class MusicBrainzClient implements MusicBrainzPort {
                         .queryParam("fmt", "json")
                         .queryParam("limit", 5)
                         .build())
+                .header(HttpHeaders.USER_AGENT, userAgent())
                 .retrieve()
                 .body(JsonNode.class));
         if (root == null) {
@@ -88,6 +95,7 @@ public class MusicBrainzClient implements MusicBrainzPort {
                         .queryParam("fmt", "json")
                         .queryParam("limit", 5)
                         .build())
+                .header(HttpHeaders.USER_AGENT, userAgent())
                 .retrieve()
                 .body(JsonNode.class));
         if (root == null) {

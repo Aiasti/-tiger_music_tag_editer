@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * 在线服务配置（FR-5、FR-6、DEV-004）。
  *
- * <p>统一从配置读取；API Key 等敏感值通过环境变量注入，不写入源码或提交到仓库。
+ * <p>统一从配置读取；AcoustID 内置用户指定的项目专用默认 Key，可用环境变量覆盖。
  */
 @ConfigurationProperties(prefix = "app.online")
 public class OnlineProperties {
@@ -208,8 +208,10 @@ public class OnlineProperties {
     public static class Lrclib {
         private String baseUrl = "https://lrclib.net/api";
         private String userAgent = "TigerMusicTagEditor/0.1.0 (master8@live.cn)";
-        /** LRCLIB 未公布明确配额；批量检索按 1 请求/秒串行，避免触发 503。 */
-        private int requestsPerSecond = 1;
+        /** 注册的客户端应用 ID（公开值，可随客户端分发）；配置后按更高额度限速。 */
+        private String appId = "";
+        /** LRCLIB 未公布明确配额；批量检索按 2 请求/秒串行，降低 503 概率。 */
+        private int requestsPerSecond = 2;
         private int timeoutSeconds = 8;
 
         public String getBaseUrl() {
@@ -226,6 +228,14 @@ public class OnlineProperties {
 
         public void setUserAgent(String userAgent) {
             this.userAgent = userAgent;
+        }
+
+        public String getAppId() {
+            return appId;
+        }
+
+        public void setAppId(String appId) {
+            this.appId = appId;
         }
 
         public int getRequestsPerSecond() {

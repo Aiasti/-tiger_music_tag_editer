@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useTheme } from './composables/useTheme'
 import { useModals } from './composables/useModals'
 import { useWorkspace } from './composables/useWorkspace'
+import { useSettings } from './composables/useSettings'
 
 // 布局组件
 import AppHeader from './components/layout/AppHeader.vue'
@@ -22,15 +23,20 @@ import RenameModal from './components/modals/RenameModal.vue'
 import ArchiveModal from './components/modals/ArchiveModal.vue'
 import WriteConfirmModal from './components/modals/WriteConfirmModal.vue'
 import SettingsModal from './components/modals/SettingsModal.vue'
+import ConfirmModal from './components/modals/ConfirmModal.vue'
 
 const { initTheme } = useTheme()
 const { activeModal, closeModal } = useModals()
 const { tracks, importing, importError, clearWorkspaceSession } = useWorkspace()
+const { loadSettings, syncOnlineSettings } = useSettings()
 
 onMounted(async () => {
   initTheme()
   // 工作区为纯会话状态：每次渲染层加载（含重载/热重载）都视为新会话，加载即清空后端工作区（BIZ-017、BIZ-027）
   await clearWorkspaceSession()
+  // 首选项由主进程持久化；启动时读取并把在线配置下发给本地服务（S5、BIZ-035）
+  await loadSettings()
+  await syncOnlineSettings()
 })
 </script>
 
@@ -74,6 +80,9 @@ onMounted(async () => {
     <ArchiveModal v-if="activeModal === 'archive'" @close="closeModal" />
     <WriteConfirmModal v-if="activeModal === 'write-confirm'" @close="closeModal" />
     <SettingsModal v-if="activeModal === 'settings'" @close="closeModal" />
+
+    <!-- 应用内确认框（替代原生 confirm/alert） -->
+    <ConfirmModal />
   </div>
 </template>
 

@@ -13,8 +13,6 @@ const statusText = computed(() => {
       return '已保存（无待提交）'
     case 'edited':
       return '已编辑（待提交）'
-    case 'matched':
-      return '已在线匹配'
     case 'failed':
       return '读取损坏/失败'
     default:
@@ -348,9 +346,6 @@ const displayCover = computed(() => {
 }
 .state-text.edited {
   color: var(--state-edited);
-}
-.state-text.matched {
-  color: var(--state-matched);
 }
 .state-text.failed {
   color: var(--state-failed);

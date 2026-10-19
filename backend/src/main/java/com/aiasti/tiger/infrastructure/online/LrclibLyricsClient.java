@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -40,13 +41,21 @@ public class LrclibLyricsClient implements LyricsPort {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5_000);
         factory.setReadTimeout(Math.max(3, config.getTimeoutSeconds()) * 1_000);
-        this.client = builder.clone()
+        RestClient.Builder configured = builder.clone()
                 .baseUrl(config.getBaseUrl())
                 .requestFactory(factory)
                 .defaultHeader(HttpHeaders.USER_AGENT, config.getUserAgent())
-                .defaultHeader("Lrclib-Client", config.getUserAgent())
-                .build();
-        this.throttle = new RequestThrottle(config.getRequestsPerSecond());
+                .defaultHeader("Lrclib-Client", config.getUserAgent());
+        String appId = config.getAppId() == null ? "" : config.getAppId().trim();
+        if (!appId.isBlank()) {
+            configured.defaultHeader("Lrclib-App-Id", appId);
+        }
+        this.client = configured.build();
+        // 未注册 App-Id 时回到 1 请求/秒（约 60 次/分钟），避免超过未注册客户端额度
+        int requestsPerSecond = appId.isBlank()
+                ? Math.min(1, config.getRequestsPerSecond())
+                : config.getRequestsPerSecond();
+        this.throttle = new RequestThrottle(requestsPerSecond);
     }
 
     @Override
@@ -69,9 +78,8 @@ public class LrclibLyricsClient implements LyricsPort {
                     if (query.artist() != null && !query.artist().isBlank()) {
                         builder.queryParam("artist_name", query.artist());
                     }
-                    if (query.album() != null && !query.album().isBlank()) {
-                        builder.queryParam("album_name", query.album());
-                    }
+                    // 不传 album_name：LRCLIB 当前对 track_name + album_name 组合返回 503；
+                    // 专辑仍参与下方置信度计算。
                     if (trackName.isBlank() && query.keyword() != null && !query.keyword().isBlank()) {
                         builder.queryParam("q", query.keyword());
                     }
@@ -193,18 +201,22 @@ public class LrclibLyricsClient implements LyricsPort {
         throw new OnlineAccessException("LRCLIB 请求失败");
     }
 
-    /** 优先使用 Retry-After；否则按 1s / 2s / 4s 指数退避。 */
+    /** 优先使用 Retry-After；否则按 1s / 2s / 4s 指数退避，并叠加最多 30% 随机抖动。 */
     private static long retryDelayMillis(RestClientResponseException e, int attempt) {
         HttpHeaders headers = e.getResponseHeaders();
         String retryAfter = headers == null ? null : headers.getFirst("Retry-After");
+        long base;
         if (retryAfter != null) {
             try {
-                return Math.max(1, Long.parseLong(retryAfter.trim())) * 1000L;
+                base = Math.max(1, Long.parseLong(retryAfter.trim())) * 1000L;
             } catch (NumberFormatException ignored) {
-                // 非秒数格式时使用指数退避
+                base = 1_000L << attempt;
             }
+        } else {
+            base = 1_000L << attempt;
         }
-        return 1_000L << attempt;
+        long maxJitter = Math.max(1, base * 3 / 10);
+        return base + ThreadLocalRandom.current().nextLong(maxJitter + 1);
     }
 
     private static void sleep(long millis) {

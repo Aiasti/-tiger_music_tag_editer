@@ -3,7 +3,7 @@
  * 依据 PRD (FR-1 ~ FR-9), dev.md 应用层契约草案及 BIZ-001 ~ BIZ-012 业务规范
  */
 
-export type TrackStatus = 'saved' | 'edited' | 'matched' | 'failed'
+export type TrackStatus = 'saved' | 'edited' | 'failed'
 
 export interface TrackTagData {
   title: string

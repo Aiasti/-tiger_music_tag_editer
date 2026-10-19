@@ -53,6 +53,8 @@ const selectedTrackIds = ref<number[]>([])
 const pendingCovers = ref<Record<number, string>>({})
 /** 待写回路径（BIZ-030）：trackId → 目标完整路径；点「应用」后写入，随「确认写回」落盘。 */
 const pendingPaths = ref<Record<number, string>>({})
+/** 导入初始顺序（曲目 id 序列）：用于判断拖拽是否改动工作区，以及重置时恢复顺序（BIZ-034）。 */
+const initialOrderIds = ref<number[]>([])
 /** 最近一次写回结果（BIZ-028）：供结果面板逐项展示。 */
 const lastWriteOutcomes = ref<WriteOutcomeItem[]>([])
 /** 写回进行中标记。 */
@@ -110,14 +112,37 @@ export function useWorkspace() {
 
   /** 选区中是否存在未写回的修改（用于移除前二次确认）。 */
   const hasUncommittedInSelection = computed(() => {
-    return selectedTracks.value.some((t) => t.status === 'edited' || t.status === 'matched')
+    return selectedTracks.value.some((t) => t.status === 'edited')
   })
 
+  /** 相对最近落盘值是否存在待提交差异（含待写回封面与路径，BIZ-020、BIZ-030）。 */
+  const hasPendingChanges = (track: TrackItem): boolean => {
+    if (pendingCovers.value[track.id] !== undefined || pendingPaths.value[track.id] !== undefined) {
+      return true
+    }
+    return (Object.keys(track.lastWritten) as (keyof TrackTagData)[]).some(
+      (field) => (track.tags[field] ?? '') !== (track.lastWritten[field] ?? '')
+    )
+  }
+
+  /**
+   * 待写回曲目数：按「相对最近落盘值仍有差异」统计，而不是仅看状态。
+   * 这样写回失败的曲目仍保留角标与黄色单元格，便于用户重试（FR-8）。
+   */
   const uncommittedCount = computed(() => {
-    return tracks.value.filter((t) => t.status === 'edited' || t.status === 'matched').length
+    return tracks.value.filter((t) => hasPendingChanges(t)).length
   })
 
-  const isWorkspaceDirty = computed(() => uncommittedCount.value > 0)
+  /** 当前顺序是否偏离导入初始顺序（BIZ-034）：拖拽仅改界面顺序，但属于工作区改动。 */
+  const orderDirty = computed(() => {
+    const current = tracks.value.map((t) => t.id)
+    const initial = initialOrderIds.value
+    return (
+      current.length !== initial.length || current.some((id, index) => id !== initial[index])
+    )
+  })
+
+  const isWorkspaceDirty = computed(() => uncommittedCount.value > 0 || orderDirty.value)
 
   /** 标签值副本（TrackTagData 全为字符串字段，浅拷贝即满足值隔离，DEV-002）。 */
   const cloneTags = (tags: TrackTagData): TrackTagData => ({ ...tags })
@@ -148,19 +173,9 @@ export function useWorkspace() {
         a.id - b.id
     )
 
-  /** 相对最近落盘值是否存在待提交差异（含待写回封面与路径，BIZ-020、BIZ-030）。 */
-  const hasPendingChanges = (track: TrackItem): boolean => {
-    if (pendingCovers.value[track.id] !== undefined || pendingPaths.value[track.id] !== undefined) {
-      return true
-    }
-    return (Object.keys(track.lastWritten) as (keyof TrackTagData)[]).some(
-      (field) => (track.tags[field] ?? '') !== (track.lastWritten[field] ?? '')
-    )
-  }
-
   /**
-   * 按与最近落盘值的差异刷新状态（FR-8）：无差异即「已保存」；有差异保留「已匹配」来源标记，
-   * 否则为「已编辑」。首次快照与最近落盘值不同时（如成功写回后再回滚），仍会标记为待提交。
+   * 按与最近落盘值的差异刷新状态（FR-8）：无差异即「已保存」，有差异即「已编辑」。
+   * 首次快照与最近落盘值不同时（如成功写回后再回滚），仍会标记为待提交。
    */
   const refreshStatus = (track: TrackItem): void => {
     if (track.status === 'failed') {
@@ -168,7 +183,7 @@ export function useWorkspace() {
     }
     if (!hasPendingChanges(track)) {
       track.status = 'saved'
-    } else if (track.status !== 'matched') {
+    } else {
       track.status = 'edited'
     }
   }
@@ -204,6 +219,11 @@ export function useWorkspace() {
     skipped.value = view.skipped
     // 选区跟随数据收敛：剔除已不存在（如被移出工作区）的 id
     const existing = new Set(tracks.value.map((t) => t.id))
+    // 维护导入初始顺序：移除曲目后同步剔除；新增曲目（或初次加载）按当前排序重建（BIZ-034）
+    initialOrderIds.value = initialOrderIds.value.filter((id) => existing.has(id))
+    if (hasNewTracks || initialOrderIds.value.length === 0) {
+      initialOrderIds.value = tracks.value.map((t) => t.id)
+    }
     selectedTrackIds.value = selectedTrackIds.value.filter((id) => existing.has(id))
     // 待写回封面同样剔除已不存在的曲目（BIZ-020）
     const nextCovers: Record<number, string> = {}
@@ -539,7 +559,7 @@ export function useWorkspace() {
   }
 
   /**
-   * 应用在线元数据候选（FR-5）：应用后标记「已匹配」（待写回落盘）。
+   * 应用在线元数据候选（FR-5）：应用后与手动编辑一致，标记「已编辑」（待写回落盘）。
    * 不传 `trackIds` 时作用于当前选区（未选中则工作区全部可编辑曲目，BIZ-015）。
    *
    * <p>业务边界：在线元数据匹配**只写 12 个元数据字段，不读取、不修改歌词**；
@@ -565,7 +585,6 @@ export function useWorkspace() {
         }
       }
       if (modified) {
-        t.status = 'matched'
         refreshStatus(t)
       }
     })
@@ -603,8 +622,13 @@ export function useWorkspace() {
       // 首次快照与最近落盘值不同时（如已成功写回后再回滚）仍标记为待提交（DEV-002）
       refreshStatus(t)
     })
-    // 恢复首次快照后，按导入初始顺序（专辑 → 碟号 → 音轨号）重排（BIZ-008 / BIZ-034）
-    tracks.value = sortByAlbumDiscTrack(tracks.value)
+    // 恢复首次快照后，按导入初始顺序重排（BIZ-008 / BIZ-034）
+    const byId = new Map(tracks.value.map((t) => [t.id, t]))
+    const restored = initialOrderIds.value
+      .map((id) => byId.get(id))
+      .filter((track): track is TrackItem => track !== undefined)
+    tracks.value =
+      restored.length === tracks.value.length ? restored : sortByAlbumDiscTrack(tracks.value)
   }
 
   /**

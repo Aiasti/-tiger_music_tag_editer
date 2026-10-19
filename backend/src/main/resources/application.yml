@@ -21,8 +21,8 @@ app:
       requests-per-second: 1
     acoustid:
       base-url: https://api.acoustid.org/v2
-      # 敏感值：仅通过环境变量注入，不写入仓库
-      api-key: ${TIGER_ACOUSTID_KEY:}
+      # 应用内置默认 Key（用户指定，仅用于 Tiger 项目）；环境变量 TIGER_ACOUSTID_KEY 可覆盖
+      api-key: ${TIGER_ACOUSTID_KEY:2GzDLPsRVl}
       requests-per-second: 3
     fpcalc:
       # Chromaprint CLI：默认从 PATH 查找；本地/打包期可用 TIGER_FPCALC_PATH 指定
@@ -43,6 +43,8 @@ app:
         base-url: https://lrclib.net/api
         # LRCLIB 建议携带可识别客户端标识；默认沿用 MusicBrainz 的联系信息
         user-agent: ${TIGER_LRCLIB_USER_AGENT:TigerMusicTagEditor/0.1.0 (master8@live.cn)}
-        # 批量检索按 1 请求/秒串行，降低 503 概率
-        requests-per-second: 1
+        # 注册的客户端应用 ID（公开值，可随客户端分发）；环境变量 LRCLIB_APP_ID 可覆盖
+        app-id: ${LRCLIB_APP_ID:T4IyT3s3-pLOOkaxxSfMWnPuUWnXoUGEbOELAexvJFc}
+        # 配置 App-Id 后 2 请求/秒（约 120 次/分钟）；未配置时客户端自动降为 1 请求/秒
+        requests-per-second: 2
         timeout-seconds: 8

@@ -33,28 +33,47 @@ public class FpcalcFingerprintService implements FingerprintPort {
     private static final Logger log = LoggerFactory.getLogger(FpcalcFingerprintService.class);
     private static final int MAX_CACHE_ENTRIES = 500;
 
-    private final Path executable;
-    private final int timeoutSeconds;
+    private final OnlineProperties properties;
     private final ObjectMapper json;
     private final Map<String, Optional<Fingerprint>> cache = new ConcurrentHashMap<>();
+    private volatile String configuredPath;
+    private volatile Path executable;
 
     public FpcalcFingerprintService(OnlineProperties properties, ObjectMapper json) {
-        this.executable = resolve(properties.getFpcalc().getPath());
-        this.timeoutSeconds = Math.max(3, properties.getFpcalc().getTimeoutSeconds());
+        this.properties = properties;
         this.json = json;
-        if (executable == null) {
-            log.warn("未找到 fpcalc，AcoustID 指纹查询将不可用（配置路径：{}）", properties.getFpcalc().getPath());
-        }
     }
 
     @Override
     public boolean isAvailable() {
-        return executable != null;
+        return currentExecutable() != null;
+    }
+
+    /**
+     * 配置可能被运行时设置接口修改，因此每次使用前比较配置值；
+     * 变化时重新解析可执行文件并清空指纹缓存（S5、BIZ-035）。
+     */
+    private Path currentExecutable() {
+        String configured = properties.getFpcalc().getPath();
+        if (!configured.equals(configuredPath)) {
+            synchronized (this) {
+                if (!configured.equals(configuredPath)) {
+                    configuredPath = configured;
+                    executable = resolve(configured);
+                    cache.clear();
+                    if (executable == null) {
+                        log.warn("未找到 fpcalc，AcoustID 指纹查询将不可用（配置路径：{}）", configured);
+                    }
+                }
+            }
+        }
+        return executable;
     }
 
     @Override
     public Optional<Fingerprint> create(Path file) {
-        if (executable == null || file == null || !Files.isRegularFile(file)) {
+        Path tool = currentExecutable();
+        if (tool == null || file == null || !Files.isRegularFile(file)) {
             return Optional.empty();
         }
         String key = cacheKey(file);
@@ -62,7 +81,7 @@ public class FpcalcFingerprintService implements FingerprintPort {
         if (cached != null) {
             return cached;
         }
-        Optional<Fingerprint> value = compute(file);
+        Optional<Fingerprint> value = compute(tool, file);
         if (cache.size() >= MAX_CACHE_ENTRIES) {
             cache.clear();
         }
@@ -70,10 +89,10 @@ public class FpcalcFingerprintService implements FingerprintPort {
         return value;
     }
 
-    private Optional<Fingerprint> compute(Path file) {
+    private Optional<Fingerprint> compute(Path tool, Path file) {
         Process process;
         try {
-            process = new ProcessBuilder(executable.toString(), "-json", file.toString())
+            process = new ProcessBuilder(tool.toString(), "-json", file.toString())
                     .redirectErrorStream(true)
                     .start();
         } catch (IOException e) {
@@ -81,6 +100,7 @@ public class FpcalcFingerprintService implements FingerprintPort {
         }
 
         CompletableFuture<byte[]> output = CompletableFuture.supplyAsync(() -> readAll(process));
+        int timeoutSeconds = Math.max(3, properties.getFpcalc().getTimeoutSeconds());
         try {
             if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                 process.destroyForcibly();

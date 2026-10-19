@@ -6,6 +6,10 @@ directories:
 files:
   - out/**
   - package.json
+extraResources:
+  # fpcalc 由 scripts/prepare-fpcalc.mjs 在打包前复制；运行时解析为 resources/fpcalc
+  - from: build/fpcalc
+    to: fpcalc
 win:
   target:
     - nsis

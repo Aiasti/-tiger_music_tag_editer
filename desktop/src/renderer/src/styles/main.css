@@ -119,11 +119,6 @@ html, body {
   color: var(--state-edited);
   border: 1px solid var(--state-edited);
 }
-.status-badge.matched {
-  background: var(--state-matched-soft);
-  color: var(--state-matched);
-  border: 1px solid var(--state-matched);
-}
 .status-badge.failed {
   background: var(--state-failed-soft);
   color: var(--state-failed);
