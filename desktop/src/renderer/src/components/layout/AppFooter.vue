@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
 
@@ -7,6 +7,12 @@ const { tracks, uncommittedCount, skipped } = useWorkspace()
 const { openModal } = useModals()
 
 const failedCount = computed(() => tracks.value.filter((t) => t.status === 'failed').length)
+
+/** 版本号以打包元数据为唯一来源，避免界面硬编码与 package.json 脱节。 */
+const appVersion = ref('')
+onMounted(async () => {
+  appVersion.value = await window.api.getAppVersion()
+})
 </script>
 
 <template>
@@ -23,17 +29,6 @@ const failedCount = computed(() => tracks.value.filter((t) => t.status === 'fail
         </strong>
       </span>
       <span class="metric-divider">|</span>
-      <span class="metric-item" v-if="failedCount > 0">
-        异常状态：<strong style="color: var(--state-failed)">{{ failedCount }} 首损坏/解析失败</strong>
-      </span>
-    </div>
-
-    <div class="footer-right">
-      <div class="rate-limit-pill" title="遵守 BIZ-009 与 PRD FR-5: 客户端严格限制 ≤1.0 req/s">
-        <span class="dot"></span>
-        <span>MusicBrainz 限流保护: <strong>≤1.0 req/s</strong> (空闲)</span>
-      </div>
-
       <button
         v-if="skipped.length > 0"
         class="skip-btn"
@@ -43,6 +38,16 @@ const failedCount = computed(() => tracks.value.filter((t) => t.status === 'fail
         ⚠️ {{ skipped.length }} 项被跳过 (点击查看详情)
       </button>
       <span v-else class="metric-item skip-empty">无跳过项</span>
+      <template v-if="failedCount > 0">
+        <span class="metric-divider">|</span>
+        <span class="metric-item">
+          异常状态：<strong style="color: var(--state-failed)">{{ failedCount }} 首损坏/解析失败</strong>
+        </span>
+      </template>
+    </div>
+
+    <div class="footer-right">
+      <span v-if="appVersion" class="footer-version">v{{ appVersion }}</span>
     </div>
   </footer>
 </template>
@@ -79,21 +84,10 @@ const failedCount = computed(() => tracks.value.filter((t) => t.status === 'fail
   gap: 12px;
 }
 
-.rate-limit-pill {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  background: var(--surface-3);
-  border: 1px solid var(--border-strong);
+.footer-version {
+  font-family: var(--font-mono);
   font-size: 10.5px;
-}
-.rate-limit-pill .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--state-ok);
+  color: var(--text-muted);
 }
 
 .skip-btn {

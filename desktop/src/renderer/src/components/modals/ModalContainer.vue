@@ -9,17 +9,12 @@ defineProps<{
 }>()
 
 const { closeModal } = useModals()
-
-const handleBackdropClick = (e: MouseEvent) => {
-  if (e.target === e.currentTarget) {
-    closeModal()
-  }
-}
 </script>
 
 <template>
-  <div class="modal-backdrop" @click="handleBackdropClick">
-    <div class="modal-window" :style="{ maxWidth: maxWidth || '640px' }" @click.stop>
+  <!-- 点击遮罩不关闭模态窗：所有模态窗统一行为，仅通过显式关闭入口退出 -->
+  <div class="modal-backdrop">
+    <div class="modal-window" :style="{ maxWidth: maxWidth || '640px' }">
       <div class="modal-header">
         <span class="modal-title">{{ title }}</span>
         <button v-if="closable !== false" class="modal-close-btn" title="关闭 (ESC)" @click="closeModal">✕</button>
@@ -39,10 +34,10 @@ const handleBackdropClick = (e: MouseEvent) => {
 <style scoped>
 .modal-backdrop {
   position: fixed;
-  top: 0;
+  top: 32px;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;

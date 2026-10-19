@@ -1,6 +1,6 @@
 {
   "name": "tiger-music-tag-editor-desktop",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Tiger Music Tag Editor desktop shell (Electron + Vue 3 + TypeScript)",
   "main": "./out/main/index.js",
   "license": "MIT",

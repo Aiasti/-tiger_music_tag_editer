@@ -16,8 +16,8 @@ app:
   online:
     musicbrainz:
       base-url: https://musicbrainz.org/ws/2
-      # 必须携带可识别应用的 User-Agent（BIZ-009）；发布前替换为真实联系方式
-      user-agent: ${TIGER_MUSICBRAINZ_USER_AGENT:TigerMusicTagEditor/0.1.0 (master8@live.cn)}
+      # 必须携带可识别应用的 User-Agent（BIZ-009）；版本号由 Maven 构建时注入，升级版本后自动同步
+      user-agent: ${TIGER_MUSICBRAINZ_USER_AGENT:TigerMusicTagEditor/@project.version@ (master98@live.cn)}
       requests-per-second: 1
     acoustid:
       base-url: https://api.acoustid.org/v2
@@ -41,8 +41,8 @@ app:
     lyrics:
       lrclib:
         base-url: https://lrclib.net/api
-        # LRCLIB 建议携带可识别客户端标识；默认沿用 MusicBrainz 的联系信息
-        user-agent: ${TIGER_LRCLIB_USER_AGENT:TigerMusicTagEditor/0.1.0 (master8@live.cn)}
+        # LRCLIB 建议携带可识别客户端标识；版本号与联系信息与 MusicBrainz UA 保持一致
+        user-agent: ${TIGER_LRCLIB_USER_AGENT:TigerMusicTagEditor/@project.version@ (master98@live.cn)}
         # 注册的客户端应用 ID（公开值，可随客户端分发）；环境变量 LRCLIB_APP_ID 可覆盖
         app-id: ${LRCLIB_APP_ID:T4IyT3s3-pLOOkaxxSfMWnPuUWnXoUGEbOELAexvJFc}
         # 配置 App-Id 后 2 请求/秒（约 120 次/分钟）；未配置时客户端自动降为 1 请求/秒

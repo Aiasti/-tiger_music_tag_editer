@@ -15,6 +15,12 @@ import { writeM3u8Playlist } from './playlist'
 /** 首版支持的音频扩展名（与后端 TagAccessPort.supports 保持一致）。 */
 const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'mp4', 'flac', 'ogg', 'wav']
 
+/** 原生标题栏覆盖层的颜色，与渲染层 `--surface-2` 对齐。 */
+const TITLEBAR_OVERLAY = {
+  dark: { color: '#21252b', symbolColor: '#abb2bf', height: 32 },
+  light: { color: '#f0f0f0', symbolColor: '#383a42', height: 32 }
+} as const
+
 /**
  * 拉起播放器：可选先把曲目写入固定 M3U8（tiger trial）再交给播放器。
  *
@@ -87,6 +93,8 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('settings:sync-online', async () => syncOnlineSettings())
 
+  ipcMain.handle('app:version', () => app.getVersion())
+
   ipcMain.handle('player:play', async (_event, payload: { filePaths: string[] }) => {
     const settings = await loadSettings()
     await launchPlayback(
@@ -118,29 +126,18 @@ function registerIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle('window:is-maximized', (event) => {
+    return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false
+  })
+
+  ipcMain.handle('window:set-titlebar-overlay', (event, theme: 'dark' | 'light') => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    window?.setTitleBarOverlay(TITLEBAR_OVERLAY[theme] ?? TITLEBAR_OVERLAY.dark)
+  })
+
   ipcMain.handle('window:close', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close()
   })
-
-  ipcMain.handle(
-    'player:test',
-    async (
-      _event,
-      payload: {
-        filePaths: string[]
-        executablePath: string
-        argsTemplate: string
-        useTrialPlaylist: boolean
-      }
-    ) => {
-      await launchPlayback(
-        payload.executablePath,
-        payload.argsTemplate,
-        payload.filePaths,
-        payload.useTrialPlaylist
-      )
-    }
-  )
 
   ipcMain.handle('backend:config', () => {
     return {
@@ -155,7 +152,8 @@ function createWindow(): void {
     width: 1200,
     height: 800,
     show: false,
-    frame: false,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: TITLEBAR_OVERLAY.dark,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -166,6 +164,12 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  const notifyMaximized = () => {
+    mainWindow.webContents.send('window:maximized-changed', mainWindow.isMaximized())
+  }
+  mainWindow.on('maximize', notifyMaximized)
+  mainWindow.on('unmaximize', notifyMaximized)
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)

@@ -2,7 +2,9 @@
 
 Windows 桌面端的批量音频元数据（标签）编辑器。把一批本地音频文件导入为「工作区」，集中查看与修改标签，从在线库匹配元数据候选，确认后写回文件标签，并按模板重命名与归档。
 
-> **当前状态**：S0~S4 已完成、推送并通过真机验收（S4 主体 `83ae05d`）；S5-1 外部播放器试听、S5-2 首选项持久化与运行时下发、S5-3 fpcalc 交付准备已实现，等待真机验收；Java 运行时与安装包延后 S6。包含 MusicBrainz 文本检索、AcoustID 指纹、LRCLIB 歌词、歌词读写与独立封面匹配。项目文档在本地 `docs/` 目录维护，不随本仓库发布。
+> **当前版本**：`0.5.0`（S5 已完成并通过真机验收；minor 对应 S 阶段）。
+>
+> **当前状态**：S0~S5 已完成并通过真机验收，S5 主体及验收后调整已推送；Java 运行时与安装包延后 S6。包含 MusicBrainz 文本检索、AcoustID 指纹、LRCLIB 歌词、歌词读写与独立封面匹配。项目文档在本地 `docs/` 目录维护，不随本仓库发布。
 
 ## 功能特性
 
@@ -53,14 +55,14 @@ desktop/    Electron + Vue 3 + TypeScript + Vite 桌面端
 
 ## 在线匹配配置
 
-后端已内置 AcoustID 应用 API Key（仅用于 Tiger 项目）；其余在线配置可通过环境变量覆盖，也可在桌面端「设置 → 在线服务与限流」中填写并保存（自定义 Key 加密存储于 Electron userData）：
+后端已内置 AcoustID 应用 API Key（仅用于 Tiger 项目）；其余在线配置可通过环境变量覆盖，也可在桌面端「设置 → 首选项」中填写播放器与 fpcalc 路径（自定义 Key 加密存储于 Electron userData）：
 
 | 变量 | 说明 |
 |---|---|
 | `TIGER_ACOUSTID_KEY` | 覆盖内置默认 AcoustID Key；置空且无其它 Key 时自动降级为 MusicBrainz 文本检索 |
 | `TIGER_FPCALC_PATH` | Chromaprint `fpcalc` 可执行文件路径；未配置时按 PATH 查找 |
-| `TIGER_MUSICBRAINZ_USER_AGENT` | MusicBrainz User-Agent（含联系方式） |
-| `TIGER_LRCLIB_USER_AGENT` | LRCLIB 客户端标识 |
+| `TIGER_MUSICBRAINZ_USER_AGENT` | MusicBrainz User-Agent（默认 `TigerMusicTagEditor/版本号 (master98@live.cn)`，版本由构建注入） |
+| `TIGER_LRCLIB_USER_AGENT` | LRCLIB 客户端标识（默认与 MusicBrainz 相同，版本由构建注入） |
 | `LRCLIB_APP_ID` | 覆盖内置的 LRCLIB 客户端 App-Id；内置 ID 下歌词检索按 2 请求/秒运行 |
 
 > 内置 Key 仅适用于 Tiger 项目；如需私有部署或改用自有 Key，请通过 `TIGER_ACOUSTID_KEY` 覆盖。
@@ -82,7 +84,7 @@ cd backend
 
 - **S0~S3 已完成**：技术验证、UI 基线、导入与展示、编辑/回滚/写回、重命名/归档。
 - **S4 已完成并验收（主体 `83ae05d`，含缺陷修复的最新提交 `96d45cf`）**：MusicBrainz 文本检索、AcoustID 指纹、LRCLIB 歌词检索、歌词读写落盘、独立封面匹配、批量逐曲候选应用。
-- **S5 实施中（待真机验收）**：外部播放器试听、首选项持久化与运行时下发、fpcalc 交付准备已实现；Java 运行时与 NSIS 安装包延后 S6。
+- **S5 已完成并验收**：外部播放器试听、首选项持久化与运行时下发、fpcalc 交付准备；设置弹窗、主题与原生标题栏（Windows 11 分窗）已调整；Java 运行时与 NSIS 安装包延后 S6。
 
 进度详见本地 `docs/PROG.md`。
 

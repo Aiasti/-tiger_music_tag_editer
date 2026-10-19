@@ -371,13 +371,28 @@ export function useWorkspace() {
     tracks.value = next.map((id) => byId.get(id)).filter((t): t is TrackItem => t !== undefined)
   }
 
-  /** 清空当前会话工作区（BIZ-017）：应用启动时调用，保证「关闭重开工作区为空」。 */
+  /**
+   * 清空当前会话工作区（BIZ-017）：应用启动时调用，保证「关闭重开工作区为空」。
+   *
+   * <p>前后端同时启动时渲染层可能先于本地服务就绪；启动阶段对网络失败做短间隔重试，
+   * 避免把瞬时「Failed to fetch」暴露到空工作区（BUG-016）。
+   */
   const clearWorkspaceSession = async (): Promise<void> => {
-    try {
-      applyView(await clearWorkspaceApi())
-      importError.value = null
-    } catch (error) {
-      importError.value = error instanceof Error ? error.message : String(error)
+    const maxAttempts = 20
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        applyView(await clearWorkspaceApi())
+        importError.value = null
+        return
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const retryable = message === 'Failed to fetch' || error instanceof TypeError
+        if (!retryable || attempt === maxAttempts) {
+          importError.value = retryable ? '本地服务尚未就绪，请稍后重新加载' : message
+          return
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 500))
+      }
     }
   }
 

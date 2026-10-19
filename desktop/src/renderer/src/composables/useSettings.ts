@@ -68,16 +68,6 @@ export function useSettings() {
     await window.api.playTrack(filePaths)
   }
 
-  /** 使用设置弹窗中尚未保存的播放器路径与模板做试听测试。 */
-  const testPlayer = async (
-    executablePath: string,
-    argsTemplate: string,
-    filePaths: string[],
-    useTrialPlaylist: boolean
-  ): Promise<void> => {
-    await window.api.testPlayer({ executablePath, argsTemplate, filePaths, useTrialPlaylist })
-  }
-
   /** 向已运行的 foobar2000 发送 /stop（停止播放）。 */
   const stopPlayer = async (): Promise<void> => {
     await window.api.stopPlayer()
@@ -93,7 +83,6 @@ export function useSettings() {
     saveSettings,
     syncOnlineSettings,
     playTrack,
-    testPlayer,
     stopPlayer
   }
 }

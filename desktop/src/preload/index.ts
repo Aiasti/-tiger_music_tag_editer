@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
   PublicSettings,
@@ -19,21 +20,24 @@ const api = {
   getBackendConfig: (): Promise<{ baseUrl: string; token: string }> =>
     ipcRenderer.invoke('backend:config'),
   getSettings: (): Promise<PublicSettings> => ipcRenderer.invoke('settings:get'),
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
   saveSettings: (payload: SaveSettingsPayload): Promise<PublicSettings> =>
     ipcRenderer.invoke('settings:save', payload),
   syncOnlineSettings: (): Promise<SyncSettingsResult> =>
     ipcRenderer.invoke('settings:sync-online'),
   playTrack: (filePaths: string[]): Promise<void> =>
     ipcRenderer.invoke('player:play', { filePaths }),
-  testPlayer: (payload: {
-    filePaths: string[]
-    executablePath: string
-    argsTemplate: string
-    useTrialPlaylist: boolean
-  }): Promise<void> => ipcRenderer.invoke('player:test', payload),
   stopPlayer: (): Promise<void> => ipcRenderer.invoke('player:stop'),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke('window:toggle-maximize'),
+  isWindowMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:is-maximized'),
+  setTitleBarOverlay: (theme: 'dark' | 'light'): Promise<void> =>
+    ipcRenderer.invoke('window:set-titlebar-overlay', theme),
+  onWindowMaximized: (callback: (maximized: boolean) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, maximized: boolean) => callback(maximized)
+    ipcRenderer.on('window:maximized-changed', listener)
+    return () => ipcRenderer.removeListener('window:maximized-changed', listener)
+  },
   closeWindow: (): Promise<void> => ipcRenderer.invoke('window:close')
 }
 

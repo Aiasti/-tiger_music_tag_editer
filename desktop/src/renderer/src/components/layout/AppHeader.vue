@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { useTheme } from '../../composables/useTheme'
+import { computed } from 'vue'
 import { useModals } from '../../composables/useModals'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useSettings } from '../../composables/useSettings'
 import { useConfirm } from '../../composables/useConfirm'
 
-const { theme, toggleTheme } = useTheme()
 const { openModal } = useModals()
 const { confirm } = useConfirm()
 const {
+  tracks,
   uncommittedCount,
   rollbackAll,
   importFromDialog,
@@ -21,6 +21,9 @@ const {
 } = useWorkspace()
 const { playerConfigured, playTrack } = useSettings()
 
+/** 工作区为空时，除导入与设置外的操作均不可用。 */
+const hasTracks = computed(() => tracks.value.length > 0)
+
 const runImport = async (mode: 'files' | 'folder') => {
   await importFromDialog(mode)
   // 有跳过项时单独提示（FR-1），不阻断其余文件
@@ -32,18 +35,6 @@ const runImport = async (mode: 'files' | 'folder') => {
 const handleImportFiles = () => runImport('files')
 
 const handleImportFolder = () => runImport('folder')
-
-const minimizeWindow = () => {
-  void window.api.minimizeWindow()
-}
-
-const toggleMaximizeWindow = () => {
-  void window.api.toggleMaximizeWindow()
-}
-
-const closeWindow = () => {
-  void window.api.closeWindow()
-}
 
 const handleRollback = async () => {
   const confirmed = await confirm({
@@ -120,16 +111,6 @@ const handleListen = async () => {
       <div class="app-brand">
         <span class="app-icon">🐯</span>
         <span class="app-name">Tiger Music Tag Editor</span>
-        <span class="app-version">v0.1.0-alpha (S5 试听与首选项)</span>
-      </div>
-      <div class="window-controls">
-        <button class="theme-btn" :title="theme === 'dark' ? '切换为浅色主题 (One Light)' : '切换为暗色主题 (One Dark)'" @click="toggleTheme">
-          <span v-if="theme === 'dark'">☀️ 浅色</span>
-          <span v-else>🌙 暗色</span>
-        </button>
-        <button class="win-btn" title="最小化" @click="minimizeWindow">—</button>
-        <button class="win-btn" title="最大化 / 还原" @click="toggleMaximizeWindow">▢</button>
-        <button class="win-btn close" title="关闭" @click="closeWindow">✕</button>
       </div>
     </div>
 
@@ -161,14 +142,14 @@ const handleListen = async () => {
       <div class="toolbar-divider"></div>
 
       <div class="seg-group" role="group" aria-label="在线检索">
-        <button class="seg-btn" title="按专辑名、音频指纹与元数据匹配封面；只写入封面，不修改标签或歌词 (FR-6)" @click="openModal('cover-match')">
+        <button class="seg-btn" :disabled="!hasTracks" title="按专辑名、音频指纹与元数据匹配封面；只写入封面，不修改标签或歌词 (FR-6)" @click="openModal('cover-match')">
           🖼️ 封面匹配
         </button>
-        <button class="seg-btn" title="按当前选区（未选则全部）获取 MusicBrainz/AcoustID 基础元数据候选 (FR-5)" @click="openModal('online-match')">
+        <button class="seg-btn" :disabled="!hasTracks" title="按当前选区（未选则全部）获取 MusicBrainz/AcoustID 基础元数据候选 (FR-5)" @click="openModal('online-match')">
           🌐 在线匹配
         </button>
         <!-- BIZ-012: 独立歌词搜索专属按钮（歌词主入口，BIZ-018） -->
-        <button class="seg-btn" title="多源在线检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
+        <button class="seg-btn" :disabled="!hasTracks" title="多源在线检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
           🎵 歌词搜索
         </button>
       </div>
@@ -180,7 +161,7 @@ const handleListen = async () => {
         <button
           class="btn"
           title="按文件名模板重命名当前选中的曲目；未选中任何行时不可用 (FR-7 / BIZ-030)"
-          :disabled="selectedTrackIds.length === 0"
+          :disabled="!hasTracks || selectedTrackIds.length === 0"
           @click="openModal('rename')"
         >
           🏷️ 重命名
@@ -192,7 +173,7 @@ const handleListen = async () => {
               ? '工作区存在未写回更改，请先「💾 确认写回」后再归档 (FR-7 / BIZ-030)'
               : '按目录模板把工作区内全部文件归档到所选目录 (FR-7 / BIZ-030)'
           "
-          :disabled="uncommittedCount > 0"
+          :disabled="!hasTracks || uncommittedCount > 0"
           @click="handleArchive"
         >
           📦 归档
@@ -202,7 +183,7 @@ const handleListen = async () => {
       <div class="toolbar-divider"></div>
 
       <div class="toolbar-group">
-        <button class="btn primary writeback-btn" title="将当前编辑态标签与路径变更持久化写入磁盘 (FR-8)" @click="openModal('write-confirm')">
+        <button class="btn primary writeback-btn" :disabled="!hasTracks" title="将当前编辑态标签与路径变更持久化写入磁盘 (FR-8)" @click="openModal('write-confirm')">
           <span>💾 确认写回</span>
           <span v-if="uncommittedCount > 0" class="badge-count">{{ uncommittedCount }}</span>
         </button>
@@ -212,7 +193,7 @@ const handleListen = async () => {
       <div class="toolbar-group right">
         <button
           class="btn ghost listen-btn"
-          :disabled="selectedTracks.length === 0 && !selectedTrack"
+          :disabled="!hasTracks || (selectedTracks.length === 0 && !selectedTrack)"
           :title="
             playerConfigured
               ? selectedTracks.length > 1
@@ -240,23 +221,23 @@ const handleListen = async () => {
           <span class="chip-dot"></span>
           已选 {{ selectedTrackIds.length }} 首
         </span>
-        <button class="action-chip" title="为当前选中曲目预览 / 选择 / 移除封面 (FR-6, BIZ-020)" @click="openModal('cover-edit')">
+        <button class="action-chip" :disabled="!hasTracks" title="为当前选中曲目预览 / 选择 / 移除封面 (FR-6, BIZ-020)" @click="openModal('cover-edit')">
           编辑封面
         </button>
-        <button class="action-chip" title="批量设置某一元数据字段；未选中曲目时作用于工作区全部可编辑曲目 (FR-4)" @click="openModal('batch-edit')">
+        <button class="action-chip" :disabled="!hasTracks" title="批量设置某一元数据字段；未选中曲目时作用于工作区全部可编辑曲目 (FR-4)" @click="openModal('batch-edit')">
           批量编辑字段
         </button>
         <button
           class="action-chip"
           title="按选区与碟号连续分配音轨号；未选中范围时不可触发 (FR-3 / BIZ-003)"
-          :disabled="selectedTrackIds.length === 0"
+          :disabled="!hasTracks || selectedTrackIds.length === 0"
           @click="openModal('renumber-confirm')"
         >
           批量编号
         </button>
         <button
           class="action-chip"
-          :disabled="!isWorkspaceDirty"
+          :disabled="!hasTracks || !isWorkspaceDirty"
           :title="
             isWorkspaceDirty
               ? '放弃未写回的标签、歌词、封面、路径及顺序改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)'
@@ -286,7 +267,6 @@ const handleListen = async () => {
   height: 32px;
   padding: 0 8px;
   background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
 }
 
@@ -302,52 +282,6 @@ const handleListen = async () => {
 .app-name {
   font-weight: 600;
   color: var(--text-bright);
-}
-.app-version {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.window-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  -webkit-app-region: no-drag;
-}
-.theme-btn {
-  background: var(--surface-3);
-  border: 1px solid var(--border-strong);
-  color: var(--text);
-  padding: 2px 7px;
-  font-size: 11px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 8px;
-}
-.theme-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-bright);
-}
-.win-btn {
-  width: 28px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 3px;
-}
-.win-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-bright);
-}
-.win-btn.close:hover {
-  background: var(--state-failed);
-  color: #fff;
 }
 
 .toolbar {
