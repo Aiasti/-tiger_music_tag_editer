@@ -277,10 +277,17 @@ export function useWorkspace() {
     }
 
     if (ctrl) {
-      selectedTrackIds.value = selectedTrackIds.value.includes(trackId)
-        ? selectedTrackIds.value.filter((id) => id !== trackId)
-        : [...selectedTrackIds.value, trackId]
-      selectedTrackId.value = trackId
+      if (selectedTrackIds.value.includes(trackId)) {
+        const remaining = selectedTrackIds.value.filter((id) => id !== trackId)
+        selectedTrackIds.value = remaining
+        // 取消选中当前详情曲目时，右侧信息应切换到剩余选中项或清空
+        if (selectedTrackId.value === trackId) {
+          selectedTrackId.value = remaining.length > 0 ? remaining[remaining.length - 1] : null
+        }
+      } else {
+        selectedTrackIds.value = [...selectedTrackIds.value, trackId]
+        selectedTrackId.value = trackId
+      }
       return
     }
 
