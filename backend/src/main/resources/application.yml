@@ -13,3 +13,36 @@ app:
     # 本地接口访问 token（BIZ-013）：打包期由主进程注入 TIGER_APP_TOKEN；
     # 开发期为便于手动启动使用默认值；置空则关闭校验（仅限明确的无鉴权场景）
     token: ${TIGER_APP_TOKEN:dev-local-token}
+  online:
+    musicbrainz:
+      base-url: https://musicbrainz.org/ws/2
+      # 必须携带可识别应用的 User-Agent（BIZ-009）；发布前替换为真实联系方式
+      user-agent: ${TIGER_MUSICBRAINZ_USER_AGENT:TigerMusicTagEditor/0.1.0 (master8@live.cn)}
+      requests-per-second: 1
+    acoustid:
+      base-url: https://api.acoustid.org/v2
+      # 敏感值：仅通过环境变量注入，不写入仓库
+      api-key: ${TIGER_ACOUSTID_KEY:}
+      requests-per-second: 3
+    fpcalc:
+      # Chromaprint CLI：默认从 PATH 查找；本地/打包期可用 TIGER_FPCALC_PATH 指定
+      path: ${TIGER_FPCALC_PATH:fpcalc}
+      timeout-seconds: 30
+    cover-art:
+      base-url: https://coverartarchive.org
+      # Cover Art Archive 无严格配额；按 1 请求/秒串行，避免批量匹配过载
+      requests-per-second: 1
+      timeout-seconds: 20
+    itunes:
+      base-url: https://itunes.apple.com
+      country: US
+      requests-per-second: 3
+      timeout-seconds: 15
+    lyrics:
+      lrclib:
+        base-url: https://lrclib.net/api
+        # LRCLIB 建议携带可识别客户端标识；默认沿用 MusicBrainz 的联系信息
+        user-agent: ${TIGER_LRCLIB_USER_AGENT:TigerMusicTagEditor/0.1.0 (master8@live.cn)}
+        # 批量检索按 1 请求/秒串行，降低 503 概率
+        requests-per-second: 1
+        timeout-seconds: 8

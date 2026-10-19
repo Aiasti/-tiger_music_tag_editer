@@ -1,4 +1,14 @@
-import type { TrackItem, SkipItem, TrackTagData, WriteOutcomeItem, RenamePlanItem } from '../types'
+import type {
+  TrackItem,
+  SkipItem,
+  TrackTagData,
+  WriteOutcomeItem,
+  RenamePlanItem,
+  MetadataMatchResult,
+  LyricsMatchResult,
+  CoverMatchResult,
+  CoverCandidateItem
+} from '../types'
 
 /** 后端返回的曲目视图：不含渲染层独有的「最近成功落盘值」（DEV-002、BIZ-026）。 */
 export type TrackApiItem = Omit<TrackItem, 'lastWritten'>
@@ -117,6 +127,95 @@ export function previewRename(
     method: 'POST',
     body: JSON.stringify({ ...options, tracks })
   })
+}
+
+/** 单曲元数据匹配（FR-5、DEV-004）：把当前编辑值交给后端，由后端访问 MusicBrainz/AcoustID。 */
+export function matchMetadata(track: TrackItem, keyword = ''): Promise<MetadataMatchResult> {
+  return request<MetadataMatchResult>('/api/match/metadata', {
+    method: 'POST',
+    body: JSON.stringify({
+      trackId: track.id,
+      title: track.tags.title,
+      artist: track.tags.artist,
+      album: track.tags.album,
+      albumArtist: track.tags.albumArtist,
+      trackNo: track.tags.trackNo,
+      discNo: track.tags.discNo,
+      year: track.tags.year,
+      keyword
+    })
+  })
+}
+
+/** 单曲歌词检索（FR-6、DEV-004）：首版由后端查询 LRCLIB。 */
+export function matchLyrics(track: TrackItem, keyword = ''): Promise<LyricsMatchResult> {
+  return request<LyricsMatchResult>('/api/match/lyrics', {
+    method: 'POST',
+    body: JSON.stringify({
+      trackId: track.id,
+      title: track.tags.title,
+      artist: track.tags.artist,
+      album: track.tags.album,
+      keyword
+    })
+  })
+}
+
+/** 单曲封面匹配（FR-6、DEV-004）：复用元数据/指纹结果，由后端查询 Cover Art Archive。 */
+export function matchCover(track: TrackItem, keyword = ''): Promise<CoverMatchResult> {
+  return request<CoverMatchResult>('/api/match/cover', {
+    method: 'POST',
+    body: JSON.stringify({
+      trackId: track.id,
+      title: track.tags.title,
+      artist: track.tags.artist,
+      album: track.tags.album,
+      albumArtist: track.tags.albumArtist,
+      trackNo: track.tags.trackNo,
+      discNo: track.tags.discNo,
+      year: track.tags.year,
+      keyword
+    })
+  })
+}
+
+/** 取封面候选图片；返回用于预览的 object URL 与用于写回的 data URL，404 表示没有封面。 */
+export async function fetchCoverCandidate(
+  candidate: CoverCandidateItem
+): Promise<{ objectUrl: string; dataUrl: string } | null> {
+  const { releaseGroupId, releaseId, imageUrl } = candidate
+  if (!releaseGroupId && !releaseId && !imageUrl) {
+    return null
+  }
+  const { baseUrl, token } = await backendConfig()
+  const params = new URLSearchParams()
+  if (imageUrl) {
+    params.set('imageUrl', imageUrl)
+  } else {
+    if (releaseGroupId) {
+      params.set('releaseGroupId', releaseGroupId)
+    }
+    if (releaseId) {
+      params.set('releaseId', releaseId)
+    }
+  }
+  const response = await fetch(`${baseUrl}/api/match/cover/image?${params.toString()}`, {
+    headers: { 'X-App-Token': token }
+  })
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(`封面图片请求失败：HTTP ${response.status}`)
+  }
+  const blob = await response.blob()
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+  return { objectUrl: URL.createObjectURL(blob), dataUrl }
 }
 
 /** 取曲目内嵌封面并转为可直接展示的对象 URL；无封面返回 null。 */

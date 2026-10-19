@@ -14,6 +14,8 @@ const {
   pendingPaths,
   selectTrack,
   selectAllTracks,
+  invertSelection,
+  clearSelection,
   removeSelectedTracks,
   reorderTrack,
   startInlineEdit,
@@ -223,7 +225,15 @@ onUnmounted(() => {
       <span class="statusbar-text">
         共 <strong>{{ tracks.length }}</strong> 首 · 已选 <strong>{{ selectedTrackIds.length }}</strong> 首
       </span>
-      <button class="link-btn" title="选中工作区内全部可编辑曲目" @click="selectAllTracks">全选</button>
+      <button class="link-btn" title="选中工作区内全部可编辑曲目" @click="selectAllTracks">
+        全选
+      </button>
+      <button class="link-btn" title="在工作区可编辑曲目中反选" @click="invertSelection">
+        反选
+      </button>
+      <button class="link-btn" title="取消全部选定" @click="clearSelection">
+        取消选定
+      </button>
       <button
         class="link-btn danger"
         :disabled="selectedTrackIds.length === 0"

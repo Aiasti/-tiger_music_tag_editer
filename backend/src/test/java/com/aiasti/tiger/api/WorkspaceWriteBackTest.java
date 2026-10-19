@@ -71,6 +71,29 @@ class WorkspaceWriteBackTest {
                 .andExpect(jsonPath("$.tracks[0].tags.title").value("New Title"));
     }
 
+    /** 歌词随写回落盘：磁盘可读回，响应包含写回后的实际值（DEV-005）。 */
+    @Test
+    void commitWritesLyrics(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("lyrics.mp3");
+        Files.copy(SAMPLES.resolve("sample.mp3"), file);
+        long id = importTrack(file);
+        String lyrics = "[00:01.00]line one\n[00:02.00]line two";
+
+        String body = "{\"tracks\":[{\"id\":" + id
+                + ",\"tags\":{\"title\":\"Song\",\"lyrics\":\"[00:01.00]line one\\n[00:02.00]line two\"}"
+                + ",\"cover\":null,\"targetPath\":null}]}";
+        mockMvc.perform(post("/api/workspace/commit")
+                        .header("X-App-Token", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.outcomes[0].outcome").value("written"))
+                .andExpect(jsonPath("$.outcomes[0].tags.lyrics").value(lyrics));
+
+        assertEquals(lyrics, tagAccessPort.read(file).tags().value(TagField.LYRICS).orElse(""),
+                "歌词应写入磁盘并可读回");
+    }
+
     /** 文件被执行前被外部修改：阻止该文件（stale）且不覆盖外部改动（DEV-003 结论 1）。 */
     @Test
     void commitBlocksFileModifiedExternally(@TempDir Path dir) throws Exception {

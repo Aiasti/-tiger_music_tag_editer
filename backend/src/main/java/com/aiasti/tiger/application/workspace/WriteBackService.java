@@ -327,6 +327,7 @@ public class WriteBackService {
                 .withValue(TagField.LYRICIST, values.lyricist())
                 .withValue(TagField.ARRANGER, values.arranger())
                 .withValue(TagField.COMMENT, values.comment())
+                .withValue(TagField.LYRICS, values.lyrics())
                 .withCover(cover);
     }
 

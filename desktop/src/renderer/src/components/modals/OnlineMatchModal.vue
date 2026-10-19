@@ -1,91 +1,220 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
+import { matchMetadata } from '../../api/client'
 import { trackBaseName } from '../../utils/trackText'
+import type { MetadataCandidateItem, TrackTagData } from '../../types'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { operationScope, selectedTracks, selectedTrack, applyMatchedTags } = useWorkspace()
-
-const searchKeyword = ref('')
-const selectedCandidateIndex = ref(0)
+const { operationScope, selectedTracks, applyMatchedTags } = useWorkspace()
 
 /** 批量作用范围：当前选区，未选中则全部可编辑曲目（BIZ-015） */
 const scopeTracks = computed(() => operationScope.value)
 const scopeIsSelection = computed(() => selectedTracks.value.length > 0)
 
-/** 基础元数据候选（MusicBrainz / AcoustID）；当前为原型模拟数据，后端接入属 S4 范围。 */
-const candidates = ref([
-  {
-    id: 1,
-    source: 'MusicBrainz',
-    score: '98%',
-    title: 'Tiger Live (Official Japanese Release)',
-    sub: '发布日期: 2026-05-18 · 地区: 日本 (JP) · 包含 5 首曲目 · 媒体: CD / 44.1kHz FLAC',
-    album: 'Tiger Live',
-    artist: 'Tiger Band',
-    year: '2026'
+/** 当前查看候选的曲目（点击差异表行切换）。 */
+const activeTrackId = ref<number | null>(null)
+watch(
+  scopeTracks,
+  (list) => {
+    if (list.length === 0) {
+      activeTrackId.value = null
+      return
+    }
+    if (activeTrackId.value === null || !list.some((track) => track.id === activeTrackId.value)) {
+      activeTrackId.value = list[0].id
+    }
   },
-  {
-    id: 2,
-    source: 'MusicBrainz',
-    score: '85%',
-    title: 'Tiger Live [Deluxe 2CD Edition]',
-    sub: '发布日期: 2026-06-01 · 地区: 美国 (US) · 包含 8 首曲目 · 双碟装 (Disc 1/2)',
-    album: 'Tiger Live (Deluxe)',
-    artist: 'Tiger Band',
-    year: '2026'
-  },
-  {
-    id: 3,
-    source: 'AcoustID',
-    score: '74%',
-    title: 'Tiger Acoustic Stage · AcoustID 声学指纹库',
-    sub: '基于本地 Chromaprint 音频特征指纹比对 · 匹配到单曲指纹簇',
-    album: 'Tiger Acoustic Stage',
-    artist: 'Tiger Band',
-    year: '2025'
-  }
-])
+  { immediate: true }
+)
+const activeTrack = computed(
+  () => scopeTracks.value.find((track) => track.id === activeTrackId.value) || null
+)
 
+const searchKeyword = ref('')
+const selectedCandidateIndex = ref(0)
+const candidatesByTrack = ref<Record<number, MetadataCandidateItem[]>>({})
+const warningsByTrack = ref<Record<number, string[]>>({})
+const acoustidStatus = ref<{ available: boolean; used: boolean } | null>(null)
+const loading = ref(false)
+const stopRequested = ref(false)
+const progress = ref({ done: 0, total: 0 })
+const error = ref<string | null>(null)
+
+const candidates = computed(() => {
+  const id = activeTrackId.value
+  return id === null ? [] : candidatesByTrack.value[id] ?? []
+})
+const warnings = computed(() => {
+  const id = activeTrackId.value
+  return id === null ? [] : warningsByTrack.value[id] ?? []
+})
 const selectedCandidate = computed(() => candidates.value[selectedCandidateIndex.value])
 
-const candidateFields = () => ({
-  title: selectedCandidate.value.title,
-  artist: selectedCandidate.value.artist,
-  album: selectedCandidate.value.album,
-  year: selectedCandidate.value.year
+watch([activeTrackId, candidates], () => {
+  selectedCandidateIndex.value = 0
 })
 
-/** 候选源匹配值展示（按当前选中候选与曲目音轨号拼装） */
-const candidateValue = (trackNo: string, discNo: string) =>
-  `${selectedCandidate.value.title} · 音轨 ${trackNo || '—'} · 碟 ${discNo || '1'}`
-
-const judgementOf = (trackNo: string, status: string) => {
-  if (!trackNo) return { text: '字段补齐', cls: 'matched' }
-  if (status === 'failed') return { text: '可修复补齐', cls: 'edited' }
-  return { text: '完全匹配', cls: 'ok' }
-}
-
-const resetSearch = () => {
-  // 候选为原型模拟数据，重新检索仅复位到首个候选（真实检索属 S4 范围）
-  selectedCandidateIndex.value = 0
-}
-
-/** 仅应用到当前选中行 (FR-5)：应用后标记「已匹配」 */
-const applyToCurrentRow = () => {
-  if (selectedTrack.value) {
-    applyMatchedTags(candidateFields(), [selectedTrack.value.id])
+/** 某首曲目用于对比/批量应用的候选：当前行用用户选中的候选，其他行用各自最高分候选。 */
+const candidateFor = (track: (typeof scopeTracks.value)[number]): MetadataCandidateItem | null => {
+  if (track.id === activeTrackId.value && selectedCandidate.value) {
+    return selectedCandidate.value
   }
+  return (candidatesByTrack.value[track.id] ?? [])[0] ?? null
+}
+
+/** 把候选字段转为可应用的工作区字段（空值不覆盖现值）。 */
+const fieldsOf = (candidate: MetadataCandidateItem | null): Partial<TrackTagData> => {
+  if (!candidate) {
+    return {}
+  }
+  return {
+    title: candidate.title,
+    artist: candidate.artist,
+    album: candidate.album,
+    albumArtist: candidate.albumArtist,
+    trackNo: candidate.trackNo,
+    discNo: candidate.discNo,
+    year: candidate.year,
+    genre: candidate.genre
+  }
+}
+
+/** 当前行选中候选的字段。 */
+const candidateFields = (): Partial<TrackTagData> => fieldsOf(selectedCandidate.value ?? null)
+
+/** 差异表展示每首曲目自己的候选匹配值。 */
+const candidateValue = (track: (typeof scopeTracks.value)[number]) => {
+  if (!(track.id in candidatesByTrack.value)) {
+    return '未检索'
+  }
+  const candidate = candidateFor(track)
+  if (!candidate) {
+    return '无候选'
+  }
+  const trackNo = candidate.trackNo || track.tags.trackNo || '—'
+  const discNo = candidate.discNo || track.tags.discNo || '1'
+  return `[${candidate.source}] ${candidate.title || '—'} · 音轨 ${trackNo} · 碟 ${discNo}`
+}
+
+/** 对比每首曲目自己的候选与当前工作区字段，给出可更新项数。 */
+const judgementOf = (track: (typeof scopeTracks.value)[number]) => {
+  const candidate = candidateFor(track)
+  if (!candidate) {
+    return {
+      text: track.id in candidatesByTrack.value ? '无候选' : '未检索',
+      cls: 'edited'
+    }
+  }
+  const fields = fieldsOf(candidate)
+  const changes = (Object.keys(fields) as (keyof TrackTagData)[]).filter((key) => {
+    const value = fields[key]
+    return value && value !== (track.tags[key] ?? '')
+  }).length
+  if (changes === 0) {
+    return { text: '已一致', cls: 'ok' }
+  }
+  return { text: `${changes} 项可更新`, cls: 'matched' }
+}
+
+const searchOne = async (track: (typeof scopeTracks.value)[number]) => {
+  const result = await matchMetadata(track, searchKeyword.value.trim())
+  candidatesByTrack.value = { ...candidatesByTrack.value, [track.id]: result.candidates }
+  warningsByTrack.value = { ...warningsByTrack.value, [track.id]: result.warnings }
+  acoustidStatus.value = { available: result.acoustidAvailable, used: result.acoustidUsed }
+  return result
+}
+
+/** 检索当前曲目（或差异表当前激活行）。 */
+const searchCurrent = async () => {
+  const track = activeTrack.value
+  if (!track || loading.value) {
+    return
+  }
+  loading.value = true
+  stopRequested.value = false
+  error.value = null
+  progress.value = { done: 0, total: 1 }
+  try {
+    await searchOne(track)
+    progress.value = { done: 1, total: 1 }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 逐曲批量检索；后端已按服务条款限流，前端负责进度与停止。 */
+const searchBatch = async () => {
+  if (loading.value || scopeTracks.value.length === 0) {
+    return
+  }
+  loading.value = true
+  stopRequested.value = false
+  error.value = null
+  progress.value = { done: 0, total: scopeTracks.value.length }
+  for (const track of scopeTracks.value) {
+    if (stopRequested.value) {
+      break
+    }
+    try {
+      await searchOne(track)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      warningsByTrack.value = { ...warningsByTrack.value, [track.id]: [message] }
+    }
+    progress.value = { done: progress.value.done + 1, total: progress.value.total }
+  }
+  loading.value = false
+}
+
+const stopSearch = () => {
+  stopRequested.value = true
+}
+
+/** 仅应用到当前行 (FR-5)：应用后标记「已匹配」。 */
+const applyToCurrentRow = () => {
+  const track = activeTrack.value
+  if (!track || !selectedCandidate.value) {
+    return
+  }
+  applyMatchedTags(candidateFields(), [track.id])
   emit('close')
 }
 
-/** 批量应用到作用范围内的全部曲目 (FR-5)：应用后标记「已匹配」 */
+/** 批量应用：每首曲目使用各自最高分候选（当前行使用用户选中的候选）。 */
 const applyToScope = () => {
-  applyMatchedTags(candidateFields())
+  if (scopeTracks.value.length === 0) {
+    return
+  }
+  let applied = 0
+  const skipped: string[] = []
+  for (const track of scopeTracks.value) {
+    const candidate = candidateFor(track)
+    if (!candidate) {
+      skipped.push(trackBaseName(track))
+      continue
+    }
+    const fields = fieldsOf(candidate)
+    if (Object.values(fields).some((value) => value)) {
+      applyMatchedTags(fields, [track.id])
+      applied += 1
+    }
+  }
+  if (applied === 0) {
+    error.value = '当前作用范围内没有可应用的候选，请先执行检索'
+    return
+  }
+  if (skipped.length > 0) {
+    const names = skipped.slice(0, 5).join('、')
+    const more = skipped.length > 5 ? ` 等 ${skipped.length} 首` : ''
+    window.alert(`已应用 ${applied} 首各自最佳候选；以下曲目无候选已跳过：${names}${more}`)
+  }
   emit('close')
 }
 </script>
@@ -110,12 +239,17 @@ const applyToScope = () => {
       <!-- 客户端限流状态 (BIZ-009) -->
       <div class="throttle-bar">
         <span>
-          ⏱️ 客户端限流保护：MusicBrainz 严格遵守 ≤1.0 请求/秒，AcoustID ≤3 请求/秒
+          ⏱️ 客户端限流保护：MusicBrainz ≤1.0 请求/秒，AcoustID ≤3 请求/秒
+          <template v-if="acoustidStatus">
+            · AcoustID：{{ acoustidStatus.available ? (acoustidStatus.used ? '已用于本次匹配' : '已启用，本次无指纹结果') : '未启用（仅 MusicBrainz）' }}
+          </template>
+          <template v-if="progress.total > 0"> · 进度 {{ progress.done }}/{{ progress.total }}</template>
         </span>
         <button
           class="btn ghost sm-btn"
-          disabled
-          title="检索调度将在 S4 接入后端后可用"
+          :disabled="!loading"
+          title="停止后续曲目的检索（进行中的请求会先完成）"
+          @click="stopSearch"
         >
           ⏹ 停止查询
         </button>
@@ -127,17 +261,30 @@ const applyToScope = () => {
           v-model="searchKeyword"
           type="text"
           class="input search-kw"
-          placeholder="输入专辑名或艺术家搜索…"
+          placeholder="可选：输入检索关键词（留空使用标题/艺术家/文件名）"
+          @keydown.enter="searchCurrent"
         />
-        <button class="btn primary" title="按关键词重新检索候选" @click="resetSearch">🔍 重新检索</button>
+        <button class="btn primary" :disabled="loading || !activeTrack" @click="searchCurrent">
+          🔍 检索当前曲目
+        </button>
+        <button class="btn" :disabled="loading || scopeTracks.length === 0" @click="searchBatch">
+          ⚡ 批量检索全部 {{ scopeTracks.length }} 首
+        </button>
       </div>
+
+      <div v-if="error" class="modal-alert warning">检索失败：{{ error }}</div>
+      <div v-for="warning in warnings" :key="warning" class="modal-alert warning">⚠️ {{ warning }}</div>
 
       <!-- 候选结果列表 -->
       <div>
         <div class="pane-label">
-          检索到 {{ candidates.length }} 个基础元数据匹配源（点击卡片查看与工作区差异）：
+          当前曲目「{{ activeTrack ? (activeTrack.tags.title || trackBaseName(activeTrack)) : '—' }}」
+          检索到 {{ candidates.length }} 个基础元数据候选（点击卡片查看与工作区差异）：
         </div>
-        <div class="candidate-list">
+        <div v-if="candidates.length === 0" class="empty-cell">
+          {{ loading ? '正在检索…' : '尚未检索或没有候选，请点击「检索当前曲目」' }}
+        </div>
+        <div v-else class="candidate-list">
           <div
             v-for="(cand, idx) in candidates"
             :key="cand.id"
@@ -145,10 +292,12 @@ const applyToScope = () => {
             :class="{ selected: selectedCandidateIndex === idx }"
             @click="selectedCandidateIndex = idx"
           >
-            <div class="cand-score">{{ cand.score }}</div>
+            <div class="cand-score">{{ cand.score }}%</div>
             <div class="cand-info">
               <div class="cand-title">{{ cand.title }} · {{ cand.source }}</div>
-              <div class="cand-sub">{{ cand.sub }}</div>
+              <div class="cand-sub">
+                {{ cand.detail || [cand.artist, cand.album, cand.year].filter(Boolean).join(' · ') }}
+              </div>
             </div>
             <span class="status-dot" :class="idx === 0 ? 'ok' : 'edited'"></span>
           </div>
@@ -157,7 +306,7 @@ const applyToScope = () => {
 
       <!-- 候选曲目清单与工作区标签差异比对 -->
       <div>
-        <div class="pane-label">候选曲目清单与当前工作区标签差异比对：</div>
+        <div class="pane-label">候选曲目清单与当前工作区标签差异比对（点击行切换检索对象）：</div>
         <div class="diff-table-box">
           <table class="diff-table">
             <thead>
@@ -169,18 +318,23 @@ const applyToScope = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(track, i) in scopeTracks" :key="track.id">
+              <tr
+                v-for="(track, i) in scopeTracks"
+                :key="track.id"
+                :class="{ active: track.id === activeTrackId }"
+                @click="activeTrackId = track.id"
+              >
                 <td>{{ i + 1 }}</td>
                 <td>
                   {{ track.tags.title || trackBaseName(track) }}
                   <span v-if="!track.tags.trackNo" class="badge-old">(缺少音轨号)</span>
                 </td>
                 <td>
-                  <span class="val-new">{{ candidateValue(track.tags.trackNo, track.tags.discNo) }}</span>
+                  <span class="val-new">{{ candidateValue(track) }}</span>
                 </td>
                 <td>
-                  <span :class="`judge-${judgementOf(track.tags.trackNo, track.status).cls}`">
-                    {{ judgementOf(track.tags.trackNo, track.status).text }}
+                  <span :class="`judge-${judgementOf(track).cls}`">
+                    {{ judgementOf(track).text }}
                   </span>
                 </td>
               </tr>
@@ -194,17 +348,17 @@ const applyToScope = () => {
 
       <div class="modal-alert info">
         ℹ️ 提示：基础元数据（标题、艺术家、专辑、曲目号等）点击「应用」后将以「已匹配」状态进入内存编辑态。
-        内嵌歌词请使用独立的「🎵 歌词搜索」按钮进行专属检索与匹配。
+        批量应用时每首曲目使用各自最高分候选（当前行使用你选中的候选），无候选的曲目会被跳过；内嵌歌词请使用独立的「🎵 歌词搜索」按钮。
       </div>
     </div>
 
     <template #footer>
       <button class="btn" @click="emit('close')">取消</button>
-      <button class="btn" :disabled="!selectedTrack" @click="applyToCurrentRow">
-        仅应用到当前选中行
+      <button class="btn" :disabled="!activeTrack || !selectedCandidate" @click="applyToCurrentRow">
+        仅应用到当前行
       </button>
-      <button class="btn primary" :disabled="scopeTracks.length === 0" @click="applyToScope">
-        批量应用到所有 {{ scopeTracks.length }} 首曲目
+      <button class="btn primary" :disabled="loading || scopeTracks.length === 0" @click="applyToScope">
+        批量应用各自最佳候选（{{ scopeTracks.length }} 首）
       </button>
     </template>
   </ModalContainer>
@@ -360,6 +514,12 @@ const applyToScope = () => {
   color: var(--text-muted);
   font-weight: 600;
 }
+.diff-table tbody tr {
+  cursor: pointer;
+}
+.diff-table tbody tr.active {
+  background: var(--bg-hover);
+}
 .badge-old {
   color: var(--text-faint);
   margin-left: 4px;
@@ -390,6 +550,13 @@ const applyToScope = () => {
 .modal-alert.info {
   color: var(--text-muted);
   background: var(--info-dim);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+}
+.modal-alert.warning {
+  color: var(--state-edited);
+  background: var(--warning-dim);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 6px 12px;

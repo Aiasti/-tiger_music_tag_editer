@@ -56,6 +56,19 @@ class JaudiotaggerAudioTagAdapterTest {
         }
     }
 
+    /** 清除歌词字段不应因容器不支持删除而失败（DEV-005、BUG-008）。 */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("supportedSamples")
+    void writesWithoutLyricsWithoutFailing(String format, String fileName, @TempDir Path tempDir) throws Exception {
+        Path work = copySample(fileName, tempDir);
+
+        adapter.write(work, sampleTags().withValue(TagField.LYRICS, ""));
+
+        TrackTags actual = adapter.read(work).tags();
+        assertEquals("", actual.value(TagField.LYRICS).orElse(""), format + " 歌词应被清除");
+        assertEquals("Tiger Title", actual.value(TagField.TITLE).orElse(""), format + " 其他字段应保留");
+    }
+
     /** 读取应同时给出音频时长（mp3 样本为 0.5 秒，至少可解析出非负值）。 */
     @Test
     void readReturnsDuration(@TempDir Path tempDir) throws Exception {
@@ -117,6 +130,7 @@ class JaudiotaggerAudioTagAdapterTest {
         tags = tags.withValue(TagField.LYRICIST, "Tiger Lyricist");
         tags = tags.withValue(TagField.ARRANGER, "Tiger Arranger");
         tags = tags.withValue(TagField.COMMENT, "Tiger Comment");
+        tags = tags.withValue(TagField.LYRICS, "[00:01.00]Tiger line one\n[00:02.00]Tiger line two");
         return tags;
     }
 }

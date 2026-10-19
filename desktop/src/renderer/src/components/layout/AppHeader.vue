@@ -53,7 +53,7 @@ const handleArchive = () => {
       <div class="app-brand">
         <span class="app-icon">🐯</span>
         <span class="app-name">Tiger Music Tag Editor</span>
-        <span class="app-version">v0.1.0-alpha (S0.5 基线)</span>
+        <span class="app-version">v0.1.0-alpha (S4 在线匹配)</span>
       </div>
       <div class="window-controls">
         <button class="theme-btn" :title="theme === 'dark' ? '切换为浅色主题 (One Light)' : '切换为暗色主题 (One Dark)'" @click="toggleTheme">
@@ -80,7 +80,7 @@ const handleArchive = () => {
             📂 导入文件
           </button>
           <button
-            class="seg-btn"
+            class="seg-btn primary"
             title="递归扫描文件夹批量导入音频 (FR-1)"
             :disabled="importing"
             @click="handleImportFolder"
@@ -93,12 +93,15 @@ const handleArchive = () => {
 
       <div class="toolbar-divider"></div>
 
-      <div class="toolbar-group">
-        <button class="btn" title="按当前选区（未选则全部）获取 MusicBrainz/AcoustID 基础元数据候选 (FR-5)" @click="openModal('online-match')">
+      <div class="seg-group" role="group" aria-label="在线检索">
+        <button class="seg-btn" title="按专辑名、音频指纹与元数据匹配封面；只写入封面，不修改标签或歌词 (FR-6)" @click="openModal('cover-match')">
+          🖼️ 封面匹配
+        </button>
+        <button class="seg-btn" title="按当前选区（未选则全部）获取 MusicBrainz/AcoustID 基础元数据候选 (FR-5)" @click="openModal('online-match')">
           🌐 在线匹配
         </button>
         <!-- BIZ-012: 独立歌词搜索专属按钮（歌词主入口，BIZ-018） -->
-        <button class="btn" title="多源在线检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
+        <button class="seg-btn" title="多源在线检索与匹配内嵌歌词 (FR-6, BIZ-012)" @click="openModal('lyrics-search')">
           🎵 歌词搜索
         </button>
       </div>
@@ -138,8 +141,6 @@ const handleArchive = () => {
         </button>
       </div>
 
-      <div class="toolbar-divider"></div>
-
       <!-- 右侧辅助入口：试听（未实现，禁用并提示）与设置 (FR-9) -->
       <div class="toolbar-group right">
         <span
@@ -162,10 +163,10 @@ const handleArchive = () => {
           已选 {{ selectedTrackIds.length }} 首
         </span>
         <button class="action-chip" title="为当前选中曲目预览 / 选择 / 移除封面 (FR-6, BIZ-020)" @click="openModal('cover-edit')">
-          🖼️ 编辑封面
+          编辑封面
         </button>
-        <button class="action-chip" title="批量设置选中行的某一元数据字段 (FR-4)" @click="openModal('batch-edit')">
-          批量编辑字段…
+        <button class="action-chip" title="批量设置某一元数据字段；未选中曲目时作用于工作区全部可编辑曲目 (FR-4)" @click="openModal('batch-edit')">
+          批量编辑字段
         </button>
         <button
           class="action-chip"
@@ -173,10 +174,10 @@ const handleArchive = () => {
           :disabled="selectedTrackIds.length === 0"
           @click="openModal('renumber-confirm')"
         >
-          按范围编号 1…N
+          批量编号
         </button>
         <button class="action-chip" title="放弃未写回改动，重置至首次导入快照与顺序 (FR-8 / BIZ-006 / BIZ-008)" @click="handleRollback">
-          提交前回滚
+          重置改动
         </button>
       </div>
     </div>

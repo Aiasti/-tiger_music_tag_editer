@@ -3,11 +3,7 @@ package com.aiasti.tiger.application.workspace;
 import com.aiasti.tiger.domain.model.TagField;
 import com.aiasti.tiger.domain.model.TrackTags;
 
-/**
- * 供界面消费的标签值（契约字段与前端 `TrackTagData` 一致）。
- *
- * <p>`lyrics` 当前固定为空串——内嵌歌词的读取与编辑属 DEV-005 范围。
- */
+/** 供界面消费的标签值（契约字段与前端 `TrackTagData` 一致）。 */
 public record TagValues(
         String title,
         String artist,
@@ -37,6 +33,6 @@ public record TagValues(
                 tags.value(TagField.LYRICIST).orElse(""),
                 tags.value(TagField.ARRANGER).orElse(""),
                 tags.value(TagField.COMMENT).orElse(""),
-                "");
+                tags.value(TagField.LYRICS).orElse(""));
     }
 }

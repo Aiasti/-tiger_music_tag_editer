@@ -15,6 +15,7 @@ import SkipListModal from './components/modals/SkipListModal.vue'
 import RenumberModal from './components/modals/RenumberModal.vue'
 import BatchEditModal from './components/modals/BatchEditModal.vue'
 import OnlineMatchModal from './components/modals/OnlineMatchModal.vue'
+import CoverMatchModal from './components/modals/CoverMatchModal.vue'
 import LyricsSearchModal from './components/modals/LyricsSearchModal.vue'
 import CoverEditModal from './components/modals/CoverEditModal.vue'
 import RenameModal from './components/modals/RenameModal.vue'
@@ -66,6 +67,7 @@ onMounted(async () => {
     <RenumberModal v-if="activeModal === 'renumber-confirm'" @close="closeModal" />
     <BatchEditModal v-if="activeModal === 'batch-edit'" @close="closeModal" />
     <OnlineMatchModal v-if="activeModal === 'online-match'" @close="closeModal" />
+    <CoverMatchModal v-if="activeModal === 'cover-match'" @close="closeModal" />
     <LyricsSearchModal v-if="activeModal === 'lyrics-search'" @close="closeModal" />
     <CoverEditModal v-if="activeModal === 'cover-edit'" @close="closeModal" />
     <RenameModal v-if="activeModal === 'rename'" @close="closeModal" />

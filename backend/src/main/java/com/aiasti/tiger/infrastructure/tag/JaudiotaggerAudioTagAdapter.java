@@ -67,7 +67,7 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
                 FieldKey key = JaudiotaggerFieldKeyMapper.toLibrary(field);
                 String value = tags.value(field).orElse(null);
                 if (value == null) {
-                    tag.deleteField(key);
+                    deleteFieldQuietly(tag, key);
                 } else {
                     tag.setField(key, value);
                 }
@@ -130,6 +130,15 @@ public class JaudiotaggerAudioTagAdapter implements TagAccessPort {
             return tag.getFirst(key);
         } catch (KeyNotFoundException | UnsupportedOperationException e) {
             return null;
+        }
+    }
+
+    /** 删除单个字段；容器不支持该字段时按无操作处理，由写回校验判定。 */
+    private static void deleteFieldQuietly(Tag tag, FieldKey key) {
+        try {
+            tag.deleteField(key);
+        } catch (KeyNotFoundException | UnsupportedOperationException e) {
+            // 无此字段或容器不支持删除：保持现状
         }
     }
 

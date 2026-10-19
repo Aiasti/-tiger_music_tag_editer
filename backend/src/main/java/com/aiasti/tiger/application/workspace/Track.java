@@ -51,6 +51,11 @@ public final class Track {
         return path;
     }
 
+    /** 导入时读取的音频时长（秒）；在线歌词匹配用它参与置信度评分。 */
+    public long durationSeconds() {
+        return durationSeconds;
+    }
+
     public TrackTags firstSnapshot() {
         return firstSnapshot;
     }

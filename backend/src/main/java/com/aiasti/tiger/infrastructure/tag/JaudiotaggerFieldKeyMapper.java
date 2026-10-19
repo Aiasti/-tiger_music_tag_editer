@@ -24,6 +24,7 @@ final class JaudiotaggerFieldKeyMapper {
         TO_LIBRARY.put(TagField.LYRICIST, FieldKey.LYRICIST);
         TO_LIBRARY.put(TagField.ARRANGER, FieldKey.ARRANGER);
         TO_LIBRARY.put(TagField.COMMENT, FieldKey.COMMENT);
+        TO_LIBRARY.put(TagField.LYRICS, FieldKey.LYRICS);
     }
 
     private JaudiotaggerFieldKeyMapper() {

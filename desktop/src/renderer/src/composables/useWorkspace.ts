@@ -78,6 +78,9 @@ const METADATA_FIELDS: EditableTagField[] = [
   'comment'
 ]
 
+/** 可写回的字段：12 个元数据 + 内嵌歌词（DEV-005）。 */
+const WRITABLE_FIELDS: (keyof TrackTagData)[] = [...METADATA_FIELDS, 'lyrics']
+
 // 行内编辑状态
 const editingCell = ref<{
   trackId: number
@@ -119,6 +122,32 @@ export function useWorkspace() {
   /** 标签值副本（TrackTagData 全为字符串字段，浅拷贝即满足值隔离，DEV-002）。 */
   const cloneTags = (tags: TrackTagData): TrackTagData => ({ ...tags })
 
+  /** 读取以数字开头的字段（如 "1"、"1/12"），无法解析按 0 处理。 */
+  const leadingNumber = (value: string | undefined): number => {
+    const match = /^\d+/.exec((value ?? '').trim())
+    return match ? Number(match[0]) : 0
+  }
+
+  /** 专辑名比较：空专辑排在有值专辑之后。 */
+  const compareAlbum = (a: string | undefined, b: string | undefined): number => {
+    const left = (a ?? '').trim()
+    const right = (b ?? '').trim()
+    if (left === '' && right === '') return 0
+    if (left === '') return 1
+    if (right === '') return -1
+    return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+  }
+
+  /** 导入时的默认顺序：专辑 → 碟号 → 音轨号 → 内部 id。 */
+  const sortByAlbumDiscTrack = (list: TrackItem[]): TrackItem[] =>
+    [...list].sort(
+      (a, b) =>
+        compareAlbum(a.tags.album, b.tags.album) ||
+        leadingNumber(a.tags.discNo) - leadingNumber(b.tags.discNo) ||
+        leadingNumber(a.tags.trackNo) - leadingNumber(b.tags.trackNo) ||
+        a.id - b.id
+    )
+
   /** 相对最近落盘值是否存在待提交差异（含待写回封面与路径，BIZ-020、BIZ-030）。 */
   const hasPendingChanges = (track: TrackItem): boolean => {
     if (pendingCovers.value[track.id] !== undefined || pendingPaths.value[track.id] !== undefined) {
@@ -150,6 +179,7 @@ export function useWorkspace() {
    */
   const applyView = (view: WorkspaceView) => {
     const localById = new Map(tracks.value.map((t) => [t.id, t]))
+    const hasNewTracks = view.tracks.some((raw) => !localById.has(raw.id))
     tracks.value = view.tracks.map((raw) => {
       const local = localById.get(raw.id)
       if (!local) {
@@ -167,6 +197,10 @@ export function useWorkspace() {
         failureReason: raw.failureReason
       }
     })
+    // 新文件进入工作区时按「专辑 → 碟号 → 音轨号」排序；已有工作区刷新不打断用户拖拽顺序
+    if (hasNewTracks) {
+      tracks.value = sortByAlbumDiscTrack(tracks.value)
+    }
     skipped.value = view.skipped
     // 选区跟随数据收敛：剔除已不存在（如被移出工作区）的 id
     const existing = new Set(tracks.value.map((t) => t.id))
@@ -190,10 +224,7 @@ export function useWorkspace() {
     if (selectedTrackId.value !== null && !existing.has(selectedTrackId.value)) {
       selectedTrackId.value = null
     }
-    if (tracks.value.length > 0 && selectedTrackIds.value.length === 0) {
-      selectedTrackIds.value = [tracks.value[0].id]
-      selectedTrackId.value = tracks.value[0].id
-    }
+    // 初次导入/刷新不默认选中任何曲目；选区仅由用户显式操作产生
   }
 
   // 拉取当前工作区（会话内存态）
@@ -257,11 +288,26 @@ export function useWorkspace() {
     selectedTrackIds.value = [trackId]
   }
 
-  /** 全选当前工作区内可编辑曲目。 */
+  /** 选中工作区内全部可编辑曲目。 */
   const selectAllTracks = () => {
     const ids = tracks.value.filter((t) => t.status !== 'failed').map((t) => t.id)
     selectedTrackIds.value = ids
     selectedTrackId.value = ids.length > 0 ? ids[0] : null
+  }
+
+  /** 反选：在工作区可编辑曲目中切换选中状态。 */
+  const invertSelection = () => {
+    const ids = tracks.value.filter((t) => t.status !== 'failed').map((t) => t.id)
+    const selected = new Set(selectedTrackIds.value)
+    const next = ids.filter((id) => !selected.has(id))
+    selectedTrackIds.value = next
+    selectedTrackId.value = next.length > 0 ? next[0] : null
+  }
+
+  /** 取消全部选定。 */
+  const clearSelection = () => {
+    selectedTrackIds.value = []
+    selectedTrackId.value = null
   }
 
   /** 将所选曲目移出工作区（BIZ-015）：仅会话内移除，不改磁盘。 */
@@ -486,8 +532,11 @@ export function useWorkspace() {
   }
 
   /**
-   * 应用在线候选标签（FR-5）：应用后标记「已匹配」（待写回落盘）。
+   * 应用在线元数据候选（FR-5）：应用后标记「已匹配」（待写回落盘）。
    * 不传 `trackIds` 时作用于当前选区（未选中则工作区全部可编辑曲目，BIZ-015）。
+   *
+   * <p>业务边界：在线元数据匹配**只写 12 个元数据字段，不读取、不修改歌词**；
+   * 歌词只由「歌词搜索」与歌词相关操作修改。
    */
   const applyMatchedTags = (fields: Partial<TrackTagData>, trackIds?: number[]) => {
     const list =
@@ -498,8 +547,13 @@ export function useWorkspace() {
       if (t.status === 'failed') return
       let modified = false
       for (const [k, v] of Object.entries(fields)) {
+        const key = k as keyof TrackTagData
+        // 防御：即使调用方传入 lyrics 也不在元数据匹配中修改歌词
+        if (!METADATA_FIELDS.includes(key as EditableTagField)) {
+          continue
+        }
         if (v !== undefined && v !== '') {
-          t.tags[k as keyof TrackTagData] = v as string
+          t.tags[key] = v as string
           modified = true
         }
       }
@@ -532,8 +586,6 @@ export function useWorkspace() {
   }
 
   const rollbackAll = () => {
-    // 顺序先恢复为导入顺序（曲目 id 按导入递增，升序即导入顺序），再恢复首次快照（BIZ-008 / BIZ-006）
-    tracks.value = [...tracks.value].sort((a, b) => a.id - b.id)
     // 封面与路径同属编辑态，回滚一并丢弃（BIZ-020 / BIZ-021 / BIZ-030）
     pendingCovers.value = {}
     pendingPaths.value = {}
@@ -544,6 +596,8 @@ export function useWorkspace() {
       // 首次快照与最近落盘值不同时（如已成功写回后再回滚）仍标记为待提交（DEV-002）
       refreshStatus(t)
     })
+    // 恢复首次快照后，按导入初始顺序（专辑 → 碟号 → 音轨号）重排（BIZ-008 / BIZ-034）
+    tracks.value = sortByAlbumDiscTrack(tracks.value)
   }
 
   /**
@@ -551,7 +605,7 @@ export function useWorkspace() {
    * 后端按自己持有的落盘基线自算差异并逐文件执行；结果用于刷新最近落盘值、状态与结果面板。
    */
   const commitAllWrites = async (): Promise<void> => {
-    const targets = tracks.value.filter((t) => t.status !== 'failed' && hasPendingChanges(t))
+    const targets = tracks.value.filter((t) => hasPendingChanges(t))
     if (targets.length === 0) {
       lastWriteOutcomes.value = []
       return
@@ -593,6 +647,8 @@ export function useWorkspace() {
         }
         deletePending(t.id)
         t.failureReason = undefined
+        // failed-manual 重试成功后清除失败态，再由差异派生状态
+        t.status = 'saved'
         refreshStatus(t)
         return
       }
@@ -603,6 +659,7 @@ export function useWorkspace() {
         }
         t.hasCover = outcome.hasCover
         t.failureReason = outcome.reason || '路径变更失败，标签已写'
+        t.status = 'saved'
         refreshStatus(t)
         return
       }
@@ -628,10 +685,10 @@ export function useWorkspace() {
     }
   }
 
-  /** 用磁盘实际值刷新最近落盘值的 12 个元数据字段（歌词未写回，保持不变）。 */
+  /** 用磁盘实际值刷新最近落盘值（12 个元数据 + 歌词，DEV-005）。 */
   const applyWrittenMetadata = (track: TrackItem, written: TrackTagData): void => {
     const next = cloneTags(track.lastWritten)
-    METADATA_FIELDS.forEach((field) => {
+    WRITABLE_FIELDS.forEach((field) => {
       next[field] = written[field] ?? ''
     })
     track.lastWritten = next
@@ -749,6 +806,8 @@ export function useWorkspace() {
     importFromDialog,
     selectTrack,
     selectAllTracks,
+    invertSelection,
+    clearSelection,
     removeSelectedTracks,
     reorderTrack,
     clearWorkspaceSession,

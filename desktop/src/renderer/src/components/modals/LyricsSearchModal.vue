@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ModalContainer from './ModalContainer.vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
+import { matchLyrics } from '../../api/client'
 import { trackBaseName } from '../../utils/trackText'
 import type { LyricsCandidateItem } from '../../types'
 
@@ -13,21 +14,26 @@ const emit = defineEmits<{
 const SKIP_ID = 'skip'
 
 const { openModal } = useModals()
-const { operationScope, selectedTracks, applyLyricsToTrack, batchApplyLyrics } = useWorkspace()
+const { operationScope, selectedTracks, applyLyricsToTrack } = useWorkspace()
 
-/** 批量歌词源（启停 + 优先级展示），与设置弹窗的歌词源配置保持一致（BIZ-012） */
+/** 歌词源：首版仅 LRCLIB 真实接入，其余源保留入口但标记未接入（BIZ-012）。 */
 const sources = ref([
-  { key: 'netease', label: '网易云音乐 (Netease)', latency: '28ms', enabled: true },
-  { key: 'qqmusic', label: 'QQ 音乐 (QQMusic)', latency: '42ms', enabled: true },
-  { key: 'apple', label: 'Apple Music', latency: '65ms', enabled: true },
-  { key: 'lastfm', label: 'Last.fm (纯文本)', latency: '110ms', enabled: false }
+  { key: 'lrclib', label: 'LRCLIB (LRC/纯文本)', available: true, enabled: true },
+  { key: 'netease', label: '网易云音乐 (Netease)', available: false, enabled: false },
+  { key: 'qqmusic', label: 'QQ 音乐 (QQMusic)', available: false, enabled: false },
+  { key: 'applemusic', label: 'Apple Music', available: false, enabled: false },
+  { key: 'lastfm', label: 'Last.fm', available: false, enabled: false }
 ])
 
 const searchKeyword = ref('')
 const diffMode = ref<'split' | 'candidate'>('split')
-const selectedCandidateId = ref<string>('netease')
-/** 已执行过检索的曲目 id（用于「待匹配曲目状态」的检索态表达） */
-const searchedIds = ref<number[]>([])
+const selectedCandidateId = ref<string>(SKIP_ID)
+const resultsByTrack = ref<Record<number, LyricsCandidateItem[]>>({})
+const warningsByTrack = ref<Record<number, string[]>>({})
+const loading = ref(false)
+const stopRequested = ref(false)
+const progress = ref({ done: 0, total: 0 })
+const error = ref<string | null>(null)
 
 /** 批量作用范围：当前选区，未选中则全部可编辑曲目（BIZ-015 / BIZ-019） */
 const scopeTracks = computed(() => operationScope.value)
@@ -43,14 +49,16 @@ watch(
       return
     }
     if (activeTrackId.value === null || !list.some((t) => t.id === activeTrackId.value)) {
-      activeTrackId.value = list[0].id
+      const first = list[0]
+      activeTrackId.value = first.id
+      selectedCandidateId.value = (resultsByTrack.value[first.id] ?? [])[0]?.id ?? SKIP_ID
     }
   },
   { immediate: true }
 )
 
 const activeTrack = computed(
-  () => scopeTracks.value.find((t) => t.id === activeTrackId.value) || scopeTracks.value[0] || null
+  () => scopeTracks.value.find((t) => t.id === activeTrackId.value) || null
 )
 const activeTitle = computed(() => {
   const track = activeTrack.value
@@ -63,103 +71,119 @@ const activeTitle = computed(() => {
 const activeArtist = computed(() => activeTrack.value?.tags.artist || '未知艺术家')
 const currentLyrics = computed(() => activeTrack.value?.tags.lyrics || '')
 
-const buildPreview = (header: string, lines: string[]): string =>
-  [`[00:00.00]${header}`, ...lines].join('\n')
+const skipCandidate = computed<LyricsCandidateItem>(() => ({
+  id: SKIP_ID,
+  source: '跳过',
+  title: '不应用（跳过此曲目）',
+  artist: '—',
+  album: '—',
+  duration: '—',
+  hasTimeline: false,
+  confidence: 0,
+  preview: ''
+}))
 
-/** 多源歌词候选（当前为原型模拟数据，后端多源接入属 S4 范围） */
-const candidates = computed<LyricsCandidateItem[]>(() => {
-  const header = `${activeArtist.value} - ${activeTitle.value}`
-  return [
-    {
-      id: 'netease',
-      source: '网易云音乐 (Netease)',
-      title: `${activeTitle.value} (Live 2026)`,
-      artist: activeArtist.value,
-      album: 'Live Album',
-      duration: '07:12',
-      hasTimeline: true,
-      confidence: '98%',
-      preview: buildPreview(header, [
-        '[00:15.20]The spotlight turns on the stage tonight',
-        '[00:19.80]Feel the heartbeat, feel the burning light',
-        '[00:24.40]Electric roar, echoing through the hall',
-        '[00:29.10]Together we stand, we will never fall'
-      ])
-    },
-    {
-      id: 'qqmusic',
-      source: 'QQ 音乐 (QQMusic)',
-      title: activeTitle.value,
-      artist: activeArtist.value,
-      album: 'Live Album',
-      duration: '07:05',
-      hasTimeline: true,
-      confidence: '92%',
-      preview: buildPreview(header, [
-        '[00:18.00]The spotlight turns on the stage tonight',
-        '[00:22.50]Feel the heartbeat, feel the burning light',
-        '[00:27.10]Electric roar, echoing through the hall'
-      ])
-    },
-    {
-      id: 'apple',
-      source: 'Apple Music',
-      title: `${activeTitle.value} (Live)`,
-      artist: activeArtist.value,
-      album: 'Live Album',
-      duration: '07:08',
-      hasTimeline: true,
-      confidence: '88%',
-      preview: buildPreview(header, [
-        '[00:16.40]The spotlight turns on the stage tonight',
-        '[00:21.00]Feel the heartbeat, feel the burning light'
-      ])
-    },
-    {
-      id: SKIP_ID,
-      source: '跳过',
-      title: '不应用（跳过此曲目）',
-      artist: '—',
-      album: '—',
-      duration: '—',
-      hasTimeline: false,
-      confidence: '—',
-      preview: ''
-    }
-  ]
+/** 当前曲目的真实候选 + 末尾「不应用」卡片。 */
+const candidates = computed(() => {
+  const id = activeTrackId.value
+  const real = id === null ? [] : resultsByTrack.value[id] ?? []
+  return [...real, skipCandidate.value]
 })
 
-/** 候选数量只统计真实在线候选，不含「不应用」（BIZ-012） */
-const candidateCount = computed(
-  () => candidates.value.filter((c) => c.id !== SKIP_ID).length
-)
+/** 候选数量只统计真实在线候选，不含「不应用」（BIZ-012）。 */
+const candidateCount = computed(() => {
+  const id = activeTrackId.value
+  return id === null ? 0 : (resultsByTrack.value[id] ?? []).length
+})
 
 const selectedCandidate = computed(() =>
   candidates.value.find((c) => c.id === selectedCandidateId.value)
 )
 const isSkipSelected = computed(() => selectedCandidateId.value === SKIP_ID)
 
-/** 曲目在多源检索后的状态表达（原型模拟数据，后端接入前保持占位） */
+const warnings = computed(() => {
+  const id = activeTrackId.value
+  return id === null ? [] : warningsByTrack.value[id] ?? []
+})
+
+const searchedIds = computed(() => Object.keys(resultsByTrack.value).map(Number))
+
+const selectActive = (trackId: number) => {
+  activeTrackId.value = trackId
+  const first = (resultsByTrack.value[trackId] ?? [])[0]
+  selectedCandidateId.value = first?.id ?? SKIP_ID
+}
+
 const trackStatusText = (trackId: number): string => {
   if (!searchedIds.value.includes(trackId)) {
     return '待检索'
   }
-  const track = scopeTracks.value.find((t) => t.id === trackId)
-  return track?.tags.lyrics ? '✓ 命中多源候选' : `✓ 命中 ${candidateCount.value} 个源`
+  const list = resultsByTrack.value[trackId] ?? []
+  if (list.length === 0) {
+    return '无候选'
+  }
+  const best = Math.max(...list.map((candidate) => candidate.confidence))
+  return `✓ 命中 ${list.length} 条 · 最佳 ${best}%`
 }
 
-const switchTrack = (trackId: number) => {
-  activeTrackId.value = trackId
-}
-
-const searchCurrent = () => {
-  if (activeTrackId.value !== null && !searchedIds.value.includes(activeTrackId.value)) {
-    searchedIds.value = [...searchedIds.value, activeTrackId.value]
+const searchOne = async (track: (typeof scopeTracks.value)[number]) => {
+  const result = await matchLyrics(track, searchKeyword.value.trim())
+  resultsByTrack.value = { ...resultsByTrack.value, [track.id]: result.candidates }
+  warningsByTrack.value = { ...warningsByTrack.value, [track.id]: result.warnings }
+  if (track.id === activeTrackId.value) {
+    selectedCandidateId.value = result.candidates[0]?.id ?? SKIP_ID
   }
 }
 
-const searchBatch = () => {
-  searchedIds.value = scopeTracks.value.map((t) => t.id)
+const searchCurrent = async () => {
+  const track = activeTrack.value
+  if (!track || loading.value) {
+    return
+  }
+  loading.value = true
+  stopRequested.value = false
+  error.value = null
+  progress.value = { done: 0, total: 1 }
+  try {
+    await searchOne(track)
+    progress.value = { done: 1, total: 1 }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 逐曲批量检索；前端负责进度与停止。 */
+const searchBatch = async () => {
+  if (loading.value || scopeTracks.value.length === 0) {
+    return
+  }
+  loading.value = true
+  stopRequested.value = false
+  error.value = null
+  progress.value = { done: 0, total: scopeTracks.value.length }
+  for (const track of scopeTracks.value) {
+    if (stopRequested.value) {
+      break
+    }
+    try {
+      await searchOne(track)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      warningsByTrack.value = { ...warningsByTrack.value, [track.id]: [message] }
+    }
+    progress.value = { done: progress.value.done + 1, total: progress.value.total }
+  }
+  loading.value = false
+}
+
+const stopSearch = () => {
+  stopRequested.value = true
+}
+
+const switchTrack = (trackId: number) => {
+  selectActive(trackId)
 }
 
 const handleApplySingle = () => {
@@ -167,21 +191,34 @@ const handleApplySingle = () => {
     emit('close')
     return
   }
-  if (activeTrackId.value !== null && selectedCandidate.value) {
+  if (activeTrackId.value !== null && selectedCandidate.value?.preview) {
     applyLyricsToTrack(activeTrackId.value, selectedCandidate.value.preview)
   }
   emit('close')
 }
 
-/** 一键批量应用全部高匹配歌词：装配至当前选区（未选则全部），仅进内存编辑态 */
+/** 一键批量应用：逐首使用各自置信度 ≥85% 的最高候选，不使用当前行候选。 */
 const handleApplyBatch = () => {
-  if (isSkipSelected.value) {
-    emit('close')
+  let applied = 0
+  const skipped: string[] = []
+  for (const track of scopeTracks.value) {
+    const list = resultsByTrack.value[track.id] ?? []
+    const best = list.find((candidate) => candidate.preview && candidate.confidence >= 85)
+    if (best) {
+      applyLyricsToTrack(track.id, best.preview)
+      applied += 1
+    } else {
+      skipped.push(trackBaseName(track))
+    }
+  }
+  if (applied === 0) {
+    error.value = '没有达到 85% 的歌词候选，请先执行批量检索'
     return
   }
-  const lyricsText = selectedCandidate.value?.preview
-  if (lyricsText !== undefined) {
-    batchApplyLyrics(lyricsText)
+  if (skipped.length > 0) {
+    const names = skipped.slice(0, 5).join('、')
+    const more = skipped.length > 5 ? ` 等 ${skipped.length} 首` : ''
+    window.alert(`已应用 ${applied} 首各自最佳歌词；以下曲目无达标候选已跳过：${names}${more}`)
   }
   emit('close')
 }
@@ -213,12 +250,12 @@ const handleApplyBatch = () => {
               v-for="src in sources"
               :key="src.key"
               class="source-pill"
-              :class="{ active: src.enabled }"
+              :class="{ active: src.enabled && src.available, disabled: !src.available }"
             >
-              <input v-model="src.enabled" type="checkbox" />
+              <input v-model="src.enabled" type="checkbox" :disabled="!src.available" />
               <span class="source-dot"></span>
               <span>{{ src.label }}</span>
-              <span class="source-latency">{{ src.latency }}</span>
+              <span class="source-latency">{{ src.available ? '已接入' : '未接入' }}</span>
             </label>
           </div>
         </div>
@@ -239,9 +276,20 @@ const handleApplyBatch = () => {
           class="input search-kw"
           :placeholder="`输入歌曲名、艺术家或专辑搜索…（当前：${activeArtist} - ${activeTitle}）`"
         />
-        <button class="btn primary" @click="searchCurrent">🔍 检索当前曲目</button>
-        <button class="btn" @click="searchBatch">⚡ 批量检索全部 {{ scopeTracks.length }} 首</button>
+        <button class="btn primary" :disabled="loading || !activeTrack" @click="searchCurrent">
+          🔍 检索当前曲目
+        </button>
+        <button class="btn" :disabled="loading || scopeTracks.length === 0" @click="searchBatch">
+          ⚡ 批量检索全部 {{ scopeTracks.length }} 首
+        </button>
+        <button class="btn ghost" :disabled="!loading" @click="stopSearch">⏹ 停止</button>
+        <span v-if="progress.total > 0" class="search-progress">
+          进度 {{ progress.done }}/{{ progress.total }}
+        </span>
       </div>
+
+      <div v-if="error" class="modal-alert warning">检索失败：{{ error }}</div>
+      <div v-for="warning in warnings" :key="warning" class="modal-alert warning">⚠️ {{ warning }}</div>
 
       <!-- 左右分栏：曲目队列与候选 / 歌词对照 -->
       <div class="batch-grid">
@@ -300,10 +348,10 @@ const handleApplyBatch = () => {
                 <template v-else>
                   <div class="cand-top">
                     <span class="cand-source">{{ cand.source }}</span>
-                    <span class="cand-confidence">{{ cand.confidence }} 匹配</span>
+                    <span class="cand-confidence">{{ cand.confidence }}% 匹配</span>
                   </div>
                   <div class="cand-title">{{ cand.title }}</div>
-                  <div class="cand-sub">{{ cand.artist }} · {{ cand.album }}</div>
+                  <div class="cand-sub">{{ cand.artist }} · {{ cand.album }}<template v-if="cand.duration"> · {{ cand.duration }}</template></div>
                   <div class="cand-tags">
                     <span class="tag" :class="{ green: cand.hasTimeline }">
                       {{ cand.hasTimeline ? '⏱️ LRC 时间轴' : '纯文本' }}
@@ -379,15 +427,15 @@ const handleApplyBatch = () => {
     <template #footer>
       <div class="modal-footer-between">
         <span class="footer-tip">
-          当前选定候选：<strong>{{ selectedCandidate?.source }}</strong>（可点击左侧卡片更换）
+          当前行候选：<strong>{{ selectedCandidate?.source }}</strong>；批量应用按每首曲目各自最高分候选（≥85%），不使用当前行候选
         </span>
         <div class="footer-btn-group">
           <button class="btn" @click="emit('close')">取消</button>
           <button class="btn" :disabled="isSkipSelected" @click="handleApplySingle">
             应用至当前曲目 (待写回)
           </button>
-          <button class="btn primary" :disabled="isSkipSelected" @click="handleApplyBatch">
-            ✨ 一键批量应用全部高匹配歌词 (≥85%)
+          <button class="btn primary" :disabled="loading || searchedIds.length === 0" @click="handleApplyBatch">
+            ✨ 一键应用各自最佳歌词（≥85%）
           </button>
         </div>
       </div>
@@ -457,6 +505,10 @@ const handleApplyBatch = () => {
   border-color: var(--accent);
   color: var(--text-main);
 }
+.source-pill.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .source-pill input {
   display: none;
 }
@@ -492,6 +544,20 @@ const handleApplyBatch = () => {
 }
 .search-kw {
   flex: 1;
+}
+.search-progress {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+.modal-alert.warning {
+  color: var(--state-edited);
+  background: var(--warning-dim);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: var(--font-xs);
+  line-height: 1.5;
 }
 
 .batch-grid {

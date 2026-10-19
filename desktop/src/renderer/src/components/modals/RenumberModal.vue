@@ -10,7 +10,7 @@ const emit = defineEmits<{
 
 const { operationScope, renumberGroups, renumberTracks } = useWorkspace()
 
-const autoFillTotal = ref(true)
+const autoFillTotal = ref(false)
 /** 存在缺碟号曲目时，是否对其余曲目继续编号（BIZ-003）。 */
 const continueAfterMissing = ref(true)
 /** 可选项：添加/更改碟号（BIZ-030）——勾选则把范围内全部曲目的碟号统一设为该值。 */
@@ -34,7 +34,7 @@ const handleConfirm = () => {
 </script>
 
 <template>
-  <ModalContainer title="🔢 按碟号分组编号 (FR-3 / BIZ-003)" max-width="560px" @close="emit('close')">
+  <ModalContainer title="🔢 批量编号（按碟号分组）(FR-3 / BIZ-003)" max-width="560px" @close="emit('close')">
     <div class="modal-body-form">
       <div class="banner" :class="missing.length > 0 ? 'warning' : 'info'">
         <span>{{ missing.length > 0 ? '⚠️' : 'ℹ️' }}</span>

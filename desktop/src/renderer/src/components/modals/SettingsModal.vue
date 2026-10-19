@@ -20,10 +20,11 @@ const acoustidApiKey = ref('')
 
 // Tab 3：可选歌词源配置 (FR-9 / BIZ-012)
 const lyricsSources = ref([
-  { id: 'netease', name: '网易云音乐 (Netease Music)', enabled: true, priority: 1, desc: '支持精准时间轴 LRC，华语及流行曲库丰富' },
-  { id: 'qq', name: 'QQ 音乐 (Tencent QQ Music)', enabled: true, priority: 2, desc: '支持逐字 LRC 与多语种翻译歌词' },
-  { id: 'applemusic', name: 'Apple Music', enabled: true, priority: 3, desc: '欧美流行与原声带专辑歌词覆盖完备' },
-  { id: 'lastfm', name: 'Last.fm 元数据映射', enabled: false, priority: 4, desc: '辅助校验曲目轨道信息与标签分类' }
+  { id: 'lrclib', name: 'LRCLIB', enabled: true, priority: 1, desc: '首版已接入：支持同步 LRC 与纯文本，免鉴权' },
+  { id: 'netease', name: '网易云音乐 (Netease Music)', enabled: false, priority: 2, desc: '首版未接入，后续版本评估' },
+  { id: 'qq', name: 'QQ 音乐 (Tencent QQ Music)', enabled: false, priority: 3, desc: '首版未接入，后续版本评估' },
+  { id: 'applemusic', name: 'Apple Music', enabled: false, priority: 4, desc: '首版未接入，需要开发者令牌' },
+  { id: 'lastfm', name: 'Last.fm 元数据映射', enabled: false, priority: 5, desc: '首版未接入，需要 API Key' }
 ])
 
 const handleSave = () => {
@@ -102,7 +103,10 @@ const handleSave = () => {
             <li>AcoustID：≤ 3.0 次请求/秒。</li>
             <li>遇到 429/503 时按 Retry-After 指数退避重试。</li>
           </ul>
-          <span class="form-hint">以上为服务端强制约束，不可调高。</span>
+          <span class="form-hint">
+            当前版本通过后端环境变量读取（TIGER_MUSICBRAINZ_USER_AGENT / TIGER_ACOUSTID_KEY /
+            TIGER_FPCALC_PATH）；此处修改暂不持久化，S5 再接入设置存储。
+          </span>
         </div>
       </div>
 
@@ -119,7 +123,7 @@ const handleSave = () => {
             :class="{ enabled: source.enabled }"
           >
             <label class="source-checkbox">
-              <input v-model="source.enabled" type="checkbox" />
+              <input v-model="source.enabled" type="checkbox" :disabled="source.id !== 'lrclib'" />
               <span class="source-name">{{ source.name }}</span>
             </label>
             <span class="source-desc">{{ source.desc }}</span>

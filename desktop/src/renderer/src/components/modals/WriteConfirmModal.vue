@@ -54,7 +54,7 @@ const isPending = (track: TrackItem): boolean =>
   hasLyricsChange(track)
 
 const pendingTracks = computed(() =>
-  tracks.value.filter((t) => t.status !== 'failed' && isPending(t))
+  tracks.value.filter((t) => isPending(t))
 )
 
 const results = computed(() => lastWriteOutcomes.value)
@@ -127,7 +127,7 @@ const handleCommit = async () => {
                   >
                     路径变更
                   </span>
-                  <span v-if="hasLyricsChange(track)" class="change-tag media">歌词（暂不写回）</span>
+                  <span v-if="hasLyricsChange(track)" class="change-tag media">歌词</span>
                 </td>
                 <td><span class="format-badge">{{ track.ext.toUpperCase() }}</span></td>
               </tr>
@@ -140,7 +140,7 @@ const handleCommit = async () => {
       <div class="safety-features">
         <div class="feat-item">🛡️ <strong>失败隔离：</strong>逐文件独立执行，写回失败会自动恢复该文件为执行前状态</div>
         <div class="feat-item">📦 <strong>恢复材料：</strong>写回前在源文件同目录创建整文件备份，成功后自动清理</div>
-        <div class="feat-item">⏸️ <strong>本轮范围：</strong>写回 12 个元数据字段、封面与重命名/归档产生的路径变更；歌词写回待 DEV-005</div>
+        <div class="feat-item">⏸️ <strong>本轮范围：</strong>写回 12 个元数据字段、内嵌歌词、封面与重命名/归档产生的路径变更</div>
       </div>
     </div>
 
