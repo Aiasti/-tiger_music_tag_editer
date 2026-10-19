@@ -18,6 +18,58 @@ const { settings, loading, saving, settingsError, loadSettings, saveSettings } =
 const { confirm } = useConfirm()
 const { preference: themePreference, setTheme } = useTheme()
 
+/** 关于页展示的在线数据源；地址取官方项目页或 API 文档。 */
+const dataSources = [
+  {
+    name: 'MusicBrainz',
+    usage: '元数据',
+    owner: 'MetaBrainz Foundation',
+    url: 'https://musicbrainz.org/doc/MusicBrainz_API'
+  },
+  {
+    name: 'AcoustID',
+    usage: '音频指纹',
+    owner: 'AcoustID 开源项目（Lukáš Lalinský 发起）',
+    url: 'https://acoustid.org/webservice'
+  },
+  {
+    name: 'LRCLIB',
+    usage: '歌词',
+    owner: 'LRCLIB（tranxuanthang 维护）',
+    url: 'https://lrclib.net/docs'
+  },
+  {
+    name: 'iTunes Search API',
+    usage: '封面',
+    owner: 'Apple Inc.',
+    url: 'https://performance-partners.apple.com/search-api'
+  },
+  {
+    name: 'LrcAPI',
+    usage: '歌词 / 封面',
+    owner: 'HisAtri（LrcAPI 开源项目）',
+    url: 'https://github.com/HisAtri/LrcApi'
+  }
+]
+
+const mitLicense = `Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`
+
 const playerPath = ref('')
 const fpcalcPath = ref('')
 const appVersion = ref('')
@@ -161,19 +213,35 @@ const handleSave = async () => {
           </div>
         </div>
         <p class="about-desc">
-          Windows 桌面端批量音频元数据编辑器：导入本地音频，集中编辑标签，在线匹配元数据、封面与歌词，
-          确认后写回文件并按模板重命名归档。
+          Windows 桌面端 Music Tag 编辑器：主要功能为批量编辑音频元数据，负责封面、元数据、歌词的多源在线匹配。
         </p>
-        <dl class="about-meta">
-          <div>
-            <dt>技术栈</dt>
-            <dd>Electron + Vue 3 + Spring Boot</dd>
-          </div>
-          <div>
-            <dt>在线数据源</dt>
-            <dd>MusicBrainz、AcoustID、LRCLIB、iTunes、lrcapi</dd>
-          </div>
-        </dl>
+
+        <section class="about-section">
+          <h3 class="about-section-title">在线数据源</h3>
+          <ul class="source-list">
+            <li v-for="source in dataSources" :key="source.name" class="source-item">
+              <div class="source-head">
+                <span class="source-name">{{ source.name }}</span>
+                <span class="source-usage">{{ source.usage }}</span>
+              </div>
+              <div class="source-owner">主体：{{ source.owner }}</div>
+              <a
+                class="source-link"
+                :href="source.url"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ source.url }}
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <section class="about-section">
+          <h3 class="about-section-title">MIT License</h3>
+          <p class="license-copyright">Copyright (c) 2026 Boyd Lee</p>
+          <pre class="license-text">{{ mitLicense }}</pre>
+        </section>
       </div>
     </div>
 
@@ -197,7 +265,9 @@ const handleSave = async () => {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  min-height: 300px;
+  /* 固定高度：切换「首选项 / 关于」时模态窗尺寸不变 */
+  height: 560px;
+  max-height: calc(88vh - 92px);
 }
 
 /* 标签卡导航：横排 + 选中下划线 */
@@ -230,6 +300,10 @@ const handleSave = async () => {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .form-group {
@@ -299,28 +373,80 @@ const handleSave = async () => {
   color: var(--text);
   line-height: 1.6;
 }
-.about-meta {
+.about-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.about-section-title {
+  margin: 0;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.source-item {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.source-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.source-name {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.source-usage {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.source-owner {
+  margin-top: 2px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.source-link {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: var(--font-xs);
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-all;
+}
+.source-link:hover {
+  text-decoration: underline;
+}
+.license-copyright {
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.license-text {
   margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
-}
-.about-meta div {
-  display: flex;
-  gap: 12px;
-  font-size: var(--font-xs);
-}
-.about-meta dt {
-  flex-shrink: 0;
-  width: 72px;
   color: var(--text-muted);
-}
-.about-meta dd {
-  margin: 0;
-  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 </style>

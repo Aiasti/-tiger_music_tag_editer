@@ -137,7 +137,6 @@ const handleListen = async () => {
             📁 导入文件夹
           </button>
         </div>
-        <span v-if="importing" class="importing-hint">导入中…</span>
       </div>
 
       <div class="toolbar-divider"></div>
@@ -450,10 +449,6 @@ const handleListen = async () => {
   cursor: not-allowed;
 }
 
-.importing-hint {
-  font-size: 11.5px;
-  color: var(--accent);
-}
 .writeback-btn {
   position: relative;
 }

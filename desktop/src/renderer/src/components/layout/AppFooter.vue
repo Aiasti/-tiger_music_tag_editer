@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useWorkspace } from '../../composables/useWorkspace'
 import { useModals } from '../../composables/useModals'
 
-const { tracks, uncommittedCount, skipped } = useWorkspace()
+const { tracks, uncommittedCount, skipped, importing } = useWorkspace()
 const { openModal } = useModals()
 
 const failedCount = computed(() => tracks.value.filter((t) => t.status === 'failed').length)
@@ -18,6 +18,12 @@ onMounted(async () => {
 <template>
   <footer class="app-footer">
     <div class="footer-left">
+      <template v-if="importing">
+        <span class="metric-item importing-status">
+          <span class="spinner" aria-hidden="true"></span>导入中…
+        </span>
+        <span class="metric-divider">|</span>
+      </template>
       <span class="metric-item">
         总曲目：<strong>{{ tracks.length }} 首</strong>
       </span>
@@ -104,5 +110,24 @@ onMounted(async () => {
 }
 .skip-empty {
   color: var(--text-muted);
+}
+.importing-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+}
+.spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: footer-spin 0.8s linear infinite;
+}
+@keyframes footer-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
