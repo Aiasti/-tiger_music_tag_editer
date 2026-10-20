@@ -2,6 +2,11 @@
 
 Windows 桌面端的批量音频元数据（标签）编辑器。把一批本地音频文件导入为「工作区」，集中查看与修改标签，从在线库匹配元数据候选，确认后写回文件标签，并按模板重命名与归档。
 
+## 下载与安装
+
+- **安装包**：[Tiger Music Tag Editor 1.0.0](https://github.com/Aiasti/-tiger_music_tag_editer/releases/tag/v1.0.0)（Windows x64，`TigerMusicTagEditor-1.0.0-setup.exe`，内置 Java 运行时，安装即用）
+- **代码仓库**：[GitHub（主仓库）](https://github.com/Aiasti/-tiger_music_tag_editer) ｜ [Gitee（镜像）](https://gitee.com/aisati/tiger_music_tag_editer)
+- 安装包未做代码签名，首次运行如出现 Windows SmartScreen 提示，请选择「仍要运行」。
 
 ## 功能特性
 
