@@ -13,7 +13,7 @@
 
     <groupId>com.aiasti.tiger</groupId>
     <artifactId>tiger-music-tag-editor-backend</artifactId>
-    <version>0.5.1</version>
+    <version>1.0.0</version>
     <name>tiger-music-tag-editor-backend</name>
     <description>Tiger Music Tag Editor backend service</description>
 

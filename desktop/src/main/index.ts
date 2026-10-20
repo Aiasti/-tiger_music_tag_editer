@@ -11,6 +11,7 @@ import {
 } from './settings'
 import { launchPlayer, sendPlayerCommand } from './player'
 import { writeM3u8Playlist } from './playlist'
+import { getBackendConfig, startBackend, stopBackend } from './backend'
 
 /** 首版支持的音频扩展名（与后端 TagAccessPort.supports 保持一致）。 */
 const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'mp4', 'flac', 'ogg', 'wav']
@@ -139,12 +140,7 @@ function registerIpcHandlers(): void {
     BrowserWindow.fromWebContents(event.sender)?.close()
   })
 
-  ipcMain.handle('backend:config', () => {
-    return {
-      baseUrl: process.env['TIGER_BACKEND_URL'] ?? 'http://127.0.0.1:8080',
-      token: process.env['TIGER_APP_TOKEN'] ?? 'dev-local-token'
-    }
-  })
+  ipcMain.handle('backend:config', () => getBackendConfig())
 }
 
 function createWindow(): void {
@@ -186,26 +182,57 @@ function createWindow(): void {
   }
 }
 
-void app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.aiasti.tiger')
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
-  registerIpcHandlers()
-
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
-
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+if (!hasSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const window = BrowserWindow.getAllWindows()[0]
+    if (window) {
+      if (window.isMinimized()) {
+        window.restore()
+      }
+      window.focus()
     }
   })
-})
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+  void app.whenReady().then(async () => {
+    electronApp.setAppUserModelId('com.aiasti.tiger')
+
+    registerIpcHandlers()
+
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
+
+    try {
+      await startBackend()
+    } catch (error) {
+      dialog.showErrorBox(
+        '后端服务启动失败',
+        error instanceof Error ? error.message : String(error)
+      )
+      app.quit()
+      return
+    }
+
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+      }
+    })
+  })
+
+  app.on('before-quit', () => {
+    stopBackend()
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit()
+    }
+  })
+}

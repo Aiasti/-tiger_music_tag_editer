@@ -1,5 +1,7 @@
 appId: com.aiasti.tiger
 productName: Tiger Music Tag Editor
+artifactName: TigerMusicTagEditor-${version}-setup.${ext}
+electronDist: node_modules/electron/dist
 directories:
   buildResources: build
   output: dist
@@ -10,6 +12,11 @@ extraResources:
   # fpcalc 由 scripts/prepare-fpcalc.mjs 在打包前复制；运行时解析为 resources/fpcalc
   - from: build/fpcalc
     to: fpcalc
+  # 内置 jlink 运行时与后端 jar，用户无需安装 Java
+  - from: build/runtime
+    to: runtime
+  - from: build/backend
+    to: backend
   # 应用图标：安装包与窗口图标共用
   - from: resources/icon.ico
     to: icon.ico
@@ -17,3 +24,10 @@ win:
   icon: resources/icon.ico
   target:
     - nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Tiger Music Tag Editor

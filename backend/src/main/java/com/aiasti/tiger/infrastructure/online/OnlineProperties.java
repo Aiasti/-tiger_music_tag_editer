@@ -185,7 +185,7 @@ public class OnlineProperties {
     /** lrcapi 公开/自建服务：歌词与封面共用 /jsonapi。 */
     public static class LrcCx {
         private String baseUrl = "https://api.lrc.cx";
-        private String userAgent = "TigerMusicTagEditor/0.5.1 (master98@live.cn)";
+        private String userAgent = "TigerMusicTagEditor/1.0.0 (master98@live.cn)";
         private boolean enabled = true;
         private int requestsPerSecond = 1;
         private int timeoutSeconds = 10;

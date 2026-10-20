@@ -1,7 +1,8 @@
 {
   "name": "tiger-music-tag-editor-desktop",
-  "version": "0.5.1",
+  "version": "1.0.0",
   "description": "Tiger Music Tag Editor desktop shell (Electron + Vue 3 + TypeScript)",
+  "author": "Boyd Lee",
   "main": "./out/main/index.js",
   "license": "MIT",
   "private": true,
@@ -12,8 +13,9 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "prepare:resources": "node scripts/prepare-fpcalc.mjs",
-    "build:unpack": "npm run build && npm run prepare:resources && electron-builder --dir",
-    "build:win": "npm run build && npm run prepare:resources && electron-builder --win"
+    "prepare:runtime": "node scripts/prepare-runtime.mjs",
+    "build:unpack": "npm run build && npm run prepare:resources && npm run prepare:runtime && electron-builder --dir",
+    "build:win": "npm run build && npm run prepare:resources && npm run prepare:runtime && electron-builder --win"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

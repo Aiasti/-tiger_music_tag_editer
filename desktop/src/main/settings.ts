@@ -2,6 +2,7 @@ import { app, safeStorage } from 'electron'
 import { existsSync, readdirSync } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
+import { getBackendConfig } from './backend'
 
 /** 歌词源启停与优先级；首版仅 LRCLIB 可用，其余仅为持久化展示。 */
 export interface LyricsSourceSetting {
@@ -245,8 +246,7 @@ export async function readApiKey(): Promise<string | null> {
  */
 export async function syncOnlineSettings(): Promise<SyncSettingsResult> {
   const settings = await loadSettings()
-  const baseUrl = process.env['TIGER_BACKEND_URL'] ?? 'http://127.0.0.1:8080'
-  const token = process.env['TIGER_APP_TOKEN'] ?? 'dev-local-token'
+  const { baseUrl, token } = getBackendConfig()
   const body: Record<string, unknown> = {
     fpcalcPath: resolveFpcalcPath(settings.fpcalcPath)
   }
